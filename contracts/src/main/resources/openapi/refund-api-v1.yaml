@@ -1,0 +1,234 @@
+openapi: 3.0.3
+info:
+  title: Refund API
+  version: 1.0.0
+paths:
+  /api/v1/payments/{paymentId}/refunds:
+    post:
+      operationId: approveRefund
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+        - $ref: '#/components/parameters/FixtureRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveRefundRequest'
+      responses:
+        '202':
+          description: Refund capacity was reserved and processing is pending.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundView'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/refunds/{refundId}:
+    get:
+      operationId: getRefund
+      parameters:
+        - $ref: '#/components/parameters/RefundId'
+      responses:
+        '200':
+          description: Current refund projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundView'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/trips/{tripId}:
+    get:
+      operationId: getTripFinancialView
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+      responses:
+        '200':
+          description: Rider-visible trip charges and refunds.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripFinancialView'
+        '404':
+          $ref: '#/components/responses/Problem'
+components:
+  parameters:
+    PaymentId:
+      name: paymentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RefundId:
+      name: refundId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TripId:
+      name: tripId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    FixtureRole:
+      name: X-Fixture-Role
+      in: header
+      required: true
+      schema:
+        type: string
+        enum: [support]
+  responses:
+    Problem:
+      description: RFC 9457 problem detail.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    ApproveRefundRequest:
+      type: object
+      additionalProperties: false
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          format: decimal
+          exclusiveMinimum: true
+          minimum: 0
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+      example:
+        amount: 30.00
+        currency: EUR
+    Money:
+      type: object
+      additionalProperties: false
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          format: decimal
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+    RefundView:
+      type: object
+      additionalProperties: false
+      required: [refundId, paymentId, amount, currency, status, approvedAt]
+      properties:
+        refundId:
+          type: string
+          format: uuid
+        paymentId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        status:
+          type: string
+          enum: [pending, succeeded]
+        providerOperationId:
+          type: string
+          format: uuid
+        approvedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+      example:
+        refundId: 44444444-4444-4444-4444-444444444444
+        paymentId: 33333333-3333-3333-3333-333333333333
+        amount: 30.00
+        currency: EUR
+        status: succeeded
+        providerOperationId: 66666666-6666-6666-6666-666666666666
+        approvedAt: '2026-08-12T09:00:00Z'
+        completedAt: '2026-08-12T09:00:01Z'
+    TripFinancialView:
+      type: object
+      additionalProperties: false
+      required:
+        - tripId
+        - riderId
+        - paymentId
+        - capturedAmount
+        - originalFare
+        - waitTimeFee
+        - approvedRefundTotal
+        - finalCost
+        - refunds
+      properties:
+        tripId:
+          type: string
+          format: uuid
+        riderId:
+          type: string
+          format: uuid
+        paymentId:
+          type: string
+          format: uuid
+        capturedAmount:
+          $ref: '#/components/schemas/Money'
+        originalFare:
+          $ref: '#/components/schemas/Money'
+        waitTimeFee:
+          $ref: '#/components/schemas/Money'
+        approvedRefundTotal:
+          $ref: '#/components/schemas/Money'
+        finalCost:
+          $ref: '#/components/schemas/Money'
+        refunds:
+          type: array
+          items:
+            $ref: '#/components/schemas/RefundView'
+      example:
+        tripId: 22222222-2222-2222-2222-222222222222
+        riderId: 11111111-1111-1111-1111-111111111111
+        paymentId: 33333333-3333-3333-3333-333333333333
+        capturedAmount: {amount: 120.00, currency: EUR}
+        originalFare: {amount: 90.00, currency: EUR}
+        waitTimeFee: {amount: 30.00, currency: EUR}
+        approvedRefundTotal: {amount: 30.00, currency: EUR}
+        finalCost: {amount: 90.00, currency: EUR}
+        refunds:
+          - refundId: 44444444-4444-4444-4444-444444444444
+            paymentId: 33333333-3333-3333-3333-333333333333
+            amount: 30.00
+            currency: EUR
+            status: succeeded
+            providerOperationId: 66666666-6666-6666-6666-666666666666
+            approvedAt: '2026-08-12T09:00:00Z'
+            completedAt: '2026-08-12T09:00:01Z'
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference

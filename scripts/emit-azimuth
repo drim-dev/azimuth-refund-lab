@@ -1,0 +1,101 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+OUTPUT=${1:-"$PROJECT_ROOT/.azimuth/linkage.json"}
+PARTS="$PROJECT_ROOT/.azimuth/linkage-parts"
+CLASS_SCAN="$PARTS/jvm-classes"
+TOOLS="$PROJECT_ROOT/.cache/azimuth-tools"
+SOURCE="$PROJECT_ROOT/.cache/azimuth"
+
+if [ "$#" -gt 1 ]; then
+  echo "usage: scripts/emit-azimuth [output]" >&2
+  exit 2
+fi
+
+if [ ! -x "$TOOLS/bin/azimuth" ]; then
+  "$PROJECT_ROOT/scripts/bootstrap-azimuth"
+fi
+
+test -f "$TOOLS/jvm/annotations/dev/drim/azimuth/Azimuth.class"
+test -f "$TOOLS/jvm/extractor/dev/drim/azimuth/emit/Main.class"
+test -f "$SOURCE/tools/extractors/typescript/dist/cli.js"
+cmp "$PROJECT_ROOT/tooling/azimuth-jvm/src/main/java/dev/drim/azimuth/Azimuth.java" \
+  "$SOURCE/packages/jvm/src/main/java/dev/drim/azimuth/Azimuth.java"
+
+mkdir -p "$PARTS" "$CLASS_SCAN" "$(dirname -- "$OUTPUT")"
+
+printf '%s\n' \
+  "$PROJECT_ROOT/services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderClient.java" \
+  "$PROJECT_ROOT/services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/RefundRequestedConsumer.java" \
+  "$PROJECT_ROOT/services/refund-worker/src/test/java/dev/drim/azimuth/refund/worker/RefundWorkerComponentTest.java" \
+  "$PROJECT_ROOT/services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderLedgerEntry.java" \
+  "$PROJECT_ROOT/services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderRefundLedger.java" \
+  "$PROJECT_ROOT/services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderRefundService.java" \
+  "$PROJECT_ROOT/services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java" \
+  > "$PARTS/annotated.expected"
+find \
+  "$PROJECT_ROOT/services/refund-worker/src" \
+  "$PROJECT_ROOT/services/provider-simulator/src" \
+  -type f -name '*.java' -exec grep -l 'dev.drim.azimuth.Azimuth' {} + \
+  > "$PARTS/annotated.actual"
+LC_ALL=C sort -o "$PARTS/annotated.expected" "$PARTS/annotated.expected"
+LC_ALL=C sort -o "$PARTS/annotated.actual" "$PARTS/annotated.actual"
+cmp "$PARTS/annotated.expected" "$PARTS/annotated.actual"
+
+"$PROJECT_ROOT/mvnw" -B -DskipTests clean install
+"$PROJECT_ROOT/mvnw" -q -f "$PROJECT_ROOT/services/refund-worker/pom.xml" \
+  -DincludeScope=test dependency:build-classpath \
+  -Dmdep.outputFile="$PARTS/worker.classpath"
+"$PROJECT_ROOT/mvnw" -q -f "$PROJECT_ROOT/services/provider-simulator/pom.xml" \
+  -DincludeScope=test dependency:build-classpath \
+  -Dmdep.outputFile="$PARTS/provider.classpath"
+
+JVM_CLASSPATH="$TOOLS/jvm/annotations:$TOOLS/jvm/extractor"
+JVM_CLASSPATH="$JVM_CLASSPATH:$(tr '\n' ':' < "$PARTS/worker.classpath")"
+JVM_CLASSPATH="$JVM_CLASSPATH:$(tr '\n' ':' < "$PARTS/provider.classpath")"
+JVM_CLASSPATH="$JVM_CLASSPATH:$PROJECT_ROOT/services/refund-worker/target/classes"
+JVM_CLASSPATH="$JVM_CLASSPATH:$PROJECT_ROOT/services/refund-worker/target/test-classes"
+JVM_CLASSPATH="$JVM_CLASSPATH:$PROJECT_ROOT/services/provider-simulator/target/classes"
+JVM_CLASSPATH="$JVM_CLASSPATH:$PROJECT_ROOT/services/provider-simulator/target/test-classes"
+
+find "$CLASS_SCAN" -type f -name '*.class' -delete
+for class in \
+  dev/drim/azimuth/refund/worker/ProviderClient.class \
+  dev/drim/azimuth/refund/worker/RefundRequestedConsumer.class \
+  dev/drim/azimuth/refund/worker/RefundWorkerComponentTest.class
+do
+  mkdir -p "$CLASS_SCAN/$(dirname -- "$class")"
+  cp "$PROJECT_ROOT/services/refund-worker/target/classes/$class" "$CLASS_SCAN/$class" 2>/dev/null || \
+    cp "$PROJECT_ROOT/services/refund-worker/target/test-classes/$class" "$CLASS_SCAN/$class"
+done
+for class in \
+  dev/drim/azimuth/refund/provider/ProviderRefundService.class \
+  dev/drim/azimuth/refund/provider/ProviderRefundLedger.class \
+  dev/drim/azimuth/refund/provider/ProviderLedgerEntry.class \
+  dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.class
+do
+  mkdir -p "$CLASS_SCAN/$(dirname -- "$class")"
+  cp "$PROJECT_ROOT/services/provider-simulator/target/classes/$class" "$CLASS_SCAN/$class" 2>/dev/null || \
+    cp "$PROJECT_ROOT/services/provider-simulator/target/test-classes/$class" "$CLASS_SCAN/$class"
+done
+
+java -cp "$JVM_CLASSPATH" dev.drim.azimuth.emit.Main \
+  --output "$PARTS/jvm.json" \
+  --root "$PROJECT_ROOT" \
+  --source-root "$PROJECT_ROOT/services/refund-worker/src/main/java" \
+  --source-root "$PROJECT_ROOT/services/refund-worker/src/test/java" \
+  --source-root "$PROJECT_ROOT/services/provider-simulator/src/main/java" \
+  --source-root "$PROJECT_ROOT/services/provider-simulator/src/test/java" \
+  --classes "$CLASS_SCAN"
+
+node "$SOURCE/tools/extractors/typescript/dist/cli.js" \
+  --output "$PARTS/typescript.json" \
+  --root "$PROJECT_ROOT" \
+  "$PROJECT_ROOT/tests/system"
+
+node "$PROJECT_ROOT/tooling/azimuth-typescript/merge-manifests.mjs" \
+  "$OUTPUT" "$PARTS/jvm.json" "$PARTS/typescript.json"
+
+test -s "$OUTPUT"
+echo "Fresh JVM and TypeScript linkage → $OUTPUT"

@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: refund-api
+  datasource:
+    url: ${REFUND_DB_URL:jdbc:postgresql://localhost:5432/refunds}
+    username: ${REFUND_DB_USERNAME:refunds}
+    password: ${REFUND_DB_PASSWORD:refunds}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        default-requeue-rejected: true
+  flyway:
+    locations: classpath:db/migration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+refund:
+  outbox:
+    relay-delay: ${REFUND_OUTBOX_RELAY_DELAY:250ms}
+    confirm-timeout: ${REFUND_OUTBOX_CONFIRM_TIMEOUT:5s}

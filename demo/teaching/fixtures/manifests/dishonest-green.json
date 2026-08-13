@@ -1,0 +1,31 @@
+{
+  "realizes": [
+    {
+      "spec": "refunds/provider-effects",
+      "scenario": "redelivery-after-provider-success",
+      "site": "demo.teaching.RefundService.apply",
+      "file": "demo/teaching/fixtures/source/RefundService.java",
+      "lang": "java",
+      "source_fingerprint": "892c2582ecb8d6de72d112be4d45e5ec7e234197888e9ebc87e3c5fe4c3d877e"
+    }
+  ],
+  "covers": [
+    {
+      "spec": "refunds/provider-effects",
+      "scenario": "redelivery-after-provider-success",
+      "site": "demo.teaching.TrivialStatusTest.repeatedRequestReturnsSuccess",
+      "file": "demo/teaching/fixtures/source/TrivialStatusTest.java",
+      "lang": "java",
+      "source_fingerprint": "30e8befdb16564e5c6d3525e20a2921fad2912b190b3ad074333f7674fc9e728",
+      "scope": "component",
+      "quantification": "universal",
+      "oracle": "relational"
+    }
+  ],
+  "mechanism_implementations": [],
+  "mechanism_covers": [],
+  "class_members": [],
+  "enumerations": [],
+  "artifacts": [],
+  "observations": []
+}

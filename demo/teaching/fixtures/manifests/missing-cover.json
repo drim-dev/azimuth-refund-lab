@@ -1,0 +1,19 @@
+{
+  "realizes": [
+    {
+      "spec": "refunds/provider-effects",
+      "scenario": "redelivery-after-provider-success",
+      "site": "demo.teaching.RefundService.apply",
+      "file": "demo/teaching/fixtures/source/RefundService.java",
+      "lang": "java",
+      "source_fingerprint": "892c2582ecb8d6de72d112be4d45e5ec7e234197888e9ebc87e3c5fe4c3d877e"
+    }
+  ],
+  "covers": [],
+  "mechanism_implementations": [],
+  "mechanism_covers": [],
+  "class_members": [],
+  "enumerations": [],
+  "artifacts": [],
+  "observations": []
+}

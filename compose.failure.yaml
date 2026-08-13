@@ -1,0 +1,5 @@
+services:
+  provider:
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      PROVIDER_DEMO_REAPPLY_IDENTICAL_REQUESTS: "true"

@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+"$PROJECT_ROOT/mvnw" -B test
+npm --prefix "$PROJECT_ROOT/web" ci
+npm --prefix "$PROJECT_ROOT/web" test
+npm --prefix "$PROJECT_ROOT/web" run typecheck
+npm --prefix "$PROJECT_ROOT/web" run build
+docker compose --project-directory "$PROJECT_ROOT" config --quiet

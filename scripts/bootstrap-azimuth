@@ -1,0 +1,40 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+LOCK="$PROJECT_ROOT/tooling/azimuth.lock"
+AZIMUTH_SOURCE="$PROJECT_ROOT/.cache/azimuth"
+TOOLS_ROOT="$PROJECT_ROOT/.cache/azimuth-tools"
+
+repository=$(sed -n 's/^repository=//p' "$LOCK")
+revision=$(sed -n 's/^revision=//p' "$LOCK")
+test -n "$repository"
+test -n "$revision"
+
+if [ ! -d "$AZIMUTH_SOURCE/.git" ]; then
+  git init --quiet "$AZIMUTH_SOURCE"
+  git -C "$AZIMUTH_SOURCE" remote add origin "$repository"
+fi
+
+if [ "$(git -C "$AZIMUTH_SOURCE" rev-parse HEAD 2>/dev/null || true)" != "$revision" ]; then
+  git -C "$AZIMUTH_SOURCE" fetch --quiet --depth 1 origin "$revision"
+  git -C "$AZIMUTH_SOURCE" checkout --quiet --detach "$revision"
+fi
+
+cargo build --quiet --locked --release \
+  --manifest-path "$AZIMUTH_SOURCE/tools/azimuth/Cargo.toml"
+
+mkdir -p "$TOOLS_ROOT/jvm/annotations" "$TOOLS_ROOT/jvm/extractor" "$TOOLS_ROOT/bin"
+javac -d "$TOOLS_ROOT/jvm/annotations" \
+  "$AZIMUTH_SOURCE/packages/jvm/src/main/java/dev/drim/azimuth/Azimuth.java"
+javac -cp "$TOOLS_ROOT/jvm/annotations" -d "$TOOLS_ROOT/jvm/extractor" \
+  "$AZIMUTH_SOURCE/tools/extractors/jvm/src/main/java/dev/drim/azimuth/emit/Main.java"
+
+(cd "$AZIMUTH_SOURCE/packages/typescript" && npm install --ignore-scripts --no-audit --no-fund --silent && npm run build --silent)
+(cd "$AZIMUTH_SOURCE/tools/extractors/typescript" && npm install --ignore-scripts --no-audit --no-fund --silent && npm run build --silent)
+
+ln -sf "$AZIMUTH_SOURCE/tools/azimuth/target/release/azimuth" "$TOOLS_ROOT/bin/azimuth"
+
+actual=$(git -C "$AZIMUTH_SOURCE" rev-parse HEAD)
+test "$actual" = "$revision"
+echo "Azimuth $revision is ready under $TOOLS_ROOT"

@@ -1,0 +1,22 @@
+server:
+  port: ${SERVER_PORT:8082}
+
+spring:
+  application:
+    name: provider-simulator
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/provider}
+    username: ${DB_USERNAME:provider}
+    password: ${DB_PASSWORD:provider}
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+provider:
+  demo:
+    reapply-identical-requests: ${PROVIDER_DEMO_REAPPLY_IDENTICAL_REQUESTS:false}

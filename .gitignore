@@ -1,0 +1,15 @@
+.cache/
+.azimuth/linkage-parts/
+.idea/
+.DS_Store
+target/
+**/target/
+node_modules/
+.next/
+coverage/
+playwright-report/
+test-results/
+artifacts/offline/*.tar
+artifacts/offline/*.tgz
+artifacts/offline/*.zip
+artifacts/offline/*.mp4

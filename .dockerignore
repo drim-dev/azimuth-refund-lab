@@ -1,0 +1,8 @@
+.cache
+.git
+.idea
+.next
+**/node_modules
+**/target
+azimuth
+tests

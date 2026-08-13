@@ -1,0 +1,37 @@
+{
+  "tripId": "22222222-2222-2222-2222-222222222222",
+  "riderId": "11111111-1111-1111-1111-111111111111",
+  "paymentId": "33333333-3333-3333-3333-333333333333",
+  "capturedAmount": {
+    "amount": 120.00,
+    "currency": "EUR"
+  },
+  "originalFare": {
+    "amount": 90.00,
+    "currency": "EUR"
+  },
+  "waitTimeFee": {
+    "amount": 30.00,
+    "currency": "EUR"
+  },
+  "approvedRefundTotal": {
+    "amount": 30.00,
+    "currency": "EUR"
+  },
+  "finalCost": {
+    "amount": 90.00,
+    "currency": "EUR"
+  },
+  "refunds": [
+    {
+      "refundId": "44444444-4444-4444-4444-444444444444",
+      "paymentId": "33333333-3333-3333-3333-333333333333",
+      "amount": 30.00,
+      "currency": "EUR",
+      "status": "succeeded",
+      "providerOperationId": "66666666-6666-6666-6666-666666666666",
+      "approvedAt": "2026-08-12T09:00:00Z",
+      "completedAt": "2026-08-12T09:00:01Z"
+    }
+  ]
+}

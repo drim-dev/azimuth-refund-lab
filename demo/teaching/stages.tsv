@@ -1,0 +1,8 @@
+# id|future-tag|kind|expected-machine|expected-agent|description
+missing-cover|demo-01-uncovered|constructed|fail:uncovered|unjudged|No covering relation exists.
+wrong-evidence-form|demo-02-wrong-form|constructed|fail:wrong-form|unjudged|An example is declared where universal evidence is required.
+dishonest-green|demo-03-dishonest-binding|constructed|pass|dishonest-tag|A trivial assertion is labelled universal and relational.
+weak-oracle|demo-04-weak-oracle|constructed|pass|toothless|The test compares duplicate responses but never inspects the durable financial effect.
+surviving-mutant|demo-05-surviving-mutant|authentic-observation|survived|toothless|A bounded PIT run shows one mutation surviving the weak response oracle.
+stale-judgment|demo-06-stale-judgment|constructed|fail:stale-judgment|stale|A source input changes after a sound judgment was recorded.
+final-account|demo-07-provider-ledger|authentic-current|killed+pass|sound|The direct oracle kills that mutant; the current application account is sound.

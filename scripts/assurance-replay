@@ -1,0 +1,254 @@
+#!/bin/sh
+set -eu
+
+repository_root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+lifecycle_dir="$repository_root/demo/lifecycle"
+snapshot_file="$repository_root/artifacts/assurance/project-snapshot.json"
+expected_trace="$lifecycle_dir/expected-trace.json"
+project_id="azimuth-refund-lab"
+snapshot_id="$(jq -er '.id' "$snapshot_file")"
+contract_fingerprint="$(jq -er '.claims[] | select(.spec == "refunds/provider-effects" and .claim == "redelivery-after-provider-success") | .contractFingerprint' "$snapshot_file")"
+
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    printf 'Required command is unavailable: %s\n' "$1" >&2
+    exit 1
+  fi
+}
+
+validate_recorded_trace() {
+  jq -e \
+    --arg snapshot "$snapshot_id" \
+    --arg contract "$contract_fingerprint" \
+    '
+      .kind == "recorded-protocol-expectation" and
+      .executionEvidence == false and
+      .projectSnapshot == $snapshot and
+      .claimContract == $contract and
+      ([.events[].status] == ["open", "closed", "closed", "open", "closed", "closed", "open", "closed", "closed", "open", "closed"]) and
+      (.events[1].reasons == ["observation-expired"]) and
+      (.events[2].reasons == ["assertion-violated"]) and
+      (.events[4].reasons == ["challenge-findings"]) and
+      (.events[5].reasons == ["qualification-stale"]) and
+      (.events[6].status == "open") and
+      (.events[7].reasons == ["subject-mismatch"]) and
+      (.events[8].reasons == ["observation-expired"]) and
+      (.events[9].status == "open") and
+      (.events[10].reasons == ["assertion-violated"])
+    ' "$expected_trace" >/dev/null
+}
+
+print_trace() {
+  jq -r '
+    "Assurance lifecycle (recorded expectation; not execution evidence)",
+    (.events[] | "  \(.status | ascii_upcase)  t=\(.at)  \(.label)\(if (.reasons | length) == 0 then "" else " [\(.reasons | join(", "))]" end)")
+  ' "$expected_trace"
+}
+
+post_json() {
+  path="$1"
+  payload="$2"
+  curl --fail --silent --show-error \
+    --header 'content-type: application/json' \
+    --data-binary "@$payload" \
+    "$assurance_url$path"
+}
+
+post_value() {
+  path="$1"
+  payload="$2"
+  curl --fail --silent --show-error \
+    --header 'content-type: application/json' \
+    --data-binary "$payload" \
+    "$assurance_url$path"
+}
+
+record_gate() {
+  label="$1"
+  definition_id="$2"
+  stage="$3"
+  subject="$4"
+  at="$5"
+  expected_status="$6"
+  expected_reason="$7"
+  expected_work="$8"
+  request="$(jq -cn \
+    --arg definitionId "$definition_id" \
+    --arg stage "$stage" \
+    --argjson subject "$subject" \
+    --argjson at "$at" \
+    '{definitionId:$definitionId,stage:$stage,subject:$subject,at:$at}')"
+  response="$(post_value "/v1/projects/$project_id/gates/evaluate" "$request")"
+
+  if [ -z "$expected_reason" ]; then
+    printf '%s' "$response" | jq -e \
+      --arg status "$expected_status" \
+      '.decision.status == $status and .decision.reasons == [] and .decision.work == []' >/dev/null
+  else
+    printf '%s' "$response" | jq -e \
+      --arg status "$expected_status" \
+      --arg reason "$expected_reason" \
+      --arg work "$expected_work" \
+      '.decision.status == $status and .decision.reasons == [$reason] and .decision.work == [$work]' >/dev/null
+  fi
+
+  printf '%s' "$response" | jq -c \
+    --arg label "$label" \
+    '{label:$label,at:.request.at,status:.decision.status,reasons:.decision.reasons,work:.decision.work}' \
+    >>"$live_events"
+}
+
+run_live() {
+  require_command curl
+  assurance_url="${ASSURANCE_URL:-http://127.0.0.1:8080}"
+  work_dir="$(mktemp -d "${TMPDIR:-/tmp}/azimuth-assurance-replay.XXXXXX")"
+  trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
+  live_events="$work_dir/events.jsonl"
+  : >"$live_events"
+
+  curl --fail --silent --show-error "$assurance_url/health" >/dev/null
+
+  project_payload="$(jq -cn '{id:"azimuth-refund-lab",name:"Azimuth refund lab",createdAt:1786582600}')"
+  post_value '/v1/projects' "$project_payload" >/dev/null
+  post_json "/v1/projects/$project_id/model-snapshots" "$snapshot_file" >/dev/null
+
+  definition_response="$(post_json "/v1/projects/$project_id/definitions" "$lifecycle_dir/definition.json")"
+  definition_fingerprint="$(printf '%s' "$definition_response" | jq -er '.definitionFingerprint')"
+
+  qualification_payload="$(jq -cn \
+    --arg fingerprint "$definition_fingerprint" \
+    '{id:"qualification-refund-redelivery-v1",definitionId:"refund-redelivery-component",definitionFingerprint:$fingerprint,verdict:"qualified",qualifiedAt:1786582710,rationale:"The component boundary, universal quantification, relational provider-ledger oracle, and PostgreSQL execution context match the claim contract."}')"
+  post_value "/v1/projects/$project_id/qualifications" "$qualification_payload" >/dev/null
+
+  merge_subject="$(jq -cn \
+    --arg snapshot "$snapshot_id" \
+    '{projectSnapshot:$snapshot,revision:"demo-revision-redelivery-v1",artifactDigest:null,deploymentId:null,environment:"ci",cohort:null}')"
+  merge_context='{"database":"postgresql","execution-profile":"component-testcontainers"}'
+
+  satisfied="$(jq -cn \
+    --arg fingerprint "$definition_fingerprint" \
+    --argjson subject "$merge_subject" \
+    --argjson context "$merge_context" \
+    '{id:"component-redelivery-satisfied-v1",definitionId:"refund-redelivery-component",definitionFingerprint:$fingerprint,stage:"merge",subject:$subject,context:$context,observedAt:1786582800,expiresAt:1786583400,outcome:"satisfied",report:"reports/component-redelivery-satisfied-v1.json"}')"
+  post_value "/v1/projects/$project_id/observations" "$satisfied" >/dev/null
+  record_gate 'current satisfied observation' 'refund-redelivery-component' merge "$merge_subject" 1786582800 open '' ''
+  record_gate 'observation reaches declared expiry' 'refund-redelivery-component' merge "$merge_subject" 1786583400 closed observation-expired renew-observation
+
+  violated="$(jq -cn \
+    --arg fingerprint "$definition_fingerprint" \
+    --argjson subject "$merge_subject" \
+    --argjson context "$merge_context" \
+    '{id:"component-redelivery-violated-v1",definitionId:"refund-redelivery-component",definitionFingerprint:$fingerprint,stage:"merge",subject:$subject,context:$context,observedAt:1786583500,expiresAt:1786584200,outcome:"violated",report:"reports/component-redelivery-violated-v1.json"}')"
+  post_value "/v1/projects/$project_id/observations" "$violated" >/dev/null
+  record_gate 'new exact-revision observation violates assertion' 'refund-redelivery-component' merge "$merge_subject" 1786583500 closed assertion-violated diagnose-violation
+
+  renewed="$(jq -cn \
+    --arg fingerprint "$definition_fingerprint" \
+    --argjson subject "$merge_subject" \
+    --argjson context "$merge_context" \
+    '{id:"component-redelivery-satisfied-v2",definitionId:"refund-redelivery-component",definitionFingerprint:$fingerprint,stage:"merge",subject:$subject,context:$context,observedAt:1786583550,expiresAt:1786584300,outcome:"satisfied",report:"reports/component-redelivery-satisfied-v2.json"}')"
+  post_value "/v1/projects/$project_id/observations" "$renewed" >/dev/null
+  record_gate 'later exact-revision observation is satisfied' 'refund-redelivery-component' merge "$merge_subject" 1786583550 open '' ''
+
+  challenge="$(jq -cn \
+    --arg fingerprint "$definition_fingerprint" \
+    '{id:"pit-cf4c9dae4714e07d",source:"pit",definitionId:"refund-redelivery-component",definitionFingerprint:$fingerprint,observedAt:1786583600,outcome:"findings",report:"tooling/pit/provider-refund-observation.json"}')"
+  post_value "/v1/projects/$project_id/challenges" "$challenge" >/dev/null
+  record_gate 'PIT challenge reports findings' 'refund-redelivery-component' merge "$merge_subject" 1786583600 closed challenge-findings judge-challenge
+
+  post_json "/v1/projects/$project_id/definitions" "$lifecycle_dir/definition-drift.json" >/dev/null
+  record_gate 'definition semantics drift' 'refund-redelivery-component' merge "$merge_subject" 1786583700 closed qualification-stale qualify-definition
+
+  canary_response="$(post_json "/v1/projects/$project_id/definitions" "$lifecycle_dir/canary-definition.json")"
+  canary_fingerprint="$(printf '%s' "$canary_response" | jq -er '.definitionFingerprint')"
+  canary_qualification="$(jq -cn \
+    --arg fingerprint "$canary_fingerprint" \
+    '{id:"qualification-refund-canary-v1",definitionId:"refund-redelivery-canary",definitionFingerprint:$fingerprint,verdict:"qualified",qualifiedAt:1786583760,rationale:"The detector relates the exact canary cohort projection to the provider ledger for a bounded ten-minute window."}')"
+  post_value "/v1/projects/$project_id/qualifications" "$canary_qualification" >/dev/null
+
+  production_subject="$(jq -cn \
+    --arg snapshot "$snapshot_id" \
+    '{projectSnapshot:$snapshot,revision:"demo-revision-redelivery-v1",artifactDigest:"sha256:8c20f22ef61f9f44aaf8358a16c6aeec0c53e9f72975ec7a86e3c426de5a0377",deploymentId:"joker-canary-001",environment:"production",cohort:"5-percent"}')"
+  canary_context='{"evaluation-window":"10m","provider-environment":"simulated-production"}'
+  canary_observation="$(jq -cn \
+    --arg fingerprint "$canary_fingerprint" \
+    --argjson subject "$production_subject" \
+    --argjson context "$canary_context" \
+    '{id:"canary-refund-ledger-satisfied-v1",definitionId:"refund-redelivery-canary",definitionFingerprint:$fingerprint,stage:"canary",subject:$subject,context:$context,observedAt:1786583800,expiresAt:1786584400,outcome:"satisfied",report:"reports/canary-refund-ledger-satisfied-v1.json"}')"
+  post_value "/v1/projects/$project_id/observations" "$canary_observation" >/dev/null
+  record_gate 'exact bounded canary is healthy' 'refund-redelivery-canary' canary "$production_subject" 1786583800 open '' ''
+  altered_production_subject="$(jq -cn \
+    --arg snapshot "$snapshot_id" \
+    '{projectSnapshot:$snapshot,revision:"demo-revision-redelivery-v1",artifactDigest:"sha256:b4cb66a12472c038a4fa8fd024665290799820247b935c762ec64bc343861e8a",deploymentId:"joker-canary-002",environment:"production",cohort:"50-percent"}')"
+  record_gate 'another artifact deployment and cohort cannot reuse the canary observation' 'refund-redelivery-canary' canary "$altered_production_subject" 1786583801 closed subject-mismatch rerun-for-subject
+  record_gate 'canary observation reaches its ten-minute expiry' 'refund-redelivery-canary' canary "$production_subject" 1786584400 closed observation-expired renew-observation
+
+  reconciliation_response="$(post_json "/v1/projects/$project_id/definitions" "$lifecycle_dir/reconciliation-definition.json")"
+  reconciliation_fingerprint="$(printf '%s' "$reconciliation_response" | jq -er '.definitionFingerprint')"
+  reconciliation_qualification="$(jq -cn \
+    --arg fingerprint "$reconciliation_fingerprint" \
+    '{id:"qualification-provider-reconciliation-v1",definitionId:"provider-ledger-reconciliation",definitionFingerprint:$fingerprint,verdict:"qualified",qualifiedAt:1786584560,rationale:"The detector directly relates succeeded refunds to authoritative provider-ledger row count, amount, and currency."}')"
+  post_value "/v1/projects/$project_id/qualifications" "$reconciliation_qualification" >/dev/null
+
+  reconciliation_context='{"reconciliation-window":"15m","provider-environment":"simulated-production"}'
+  reconciliation_clean="$(jq -cn \
+    --arg fingerprint "$reconciliation_fingerprint" \
+    --argjson subject "$production_subject" \
+    --argjson context "$reconciliation_context" \
+    '{id:"provider-reconciliation-satisfied-v1",definitionId:"provider-ledger-reconciliation",definitionFingerprint:$fingerprint,stage:"operation",subject:$subject,context:$context,observedAt:1786584600,expiresAt:1786585500,outcome:"satisfied",report:"reports/provider-reconciliation-satisfied-v1.json"}')"
+  post_value "/v1/projects/$project_id/observations" "$reconciliation_clean" >/dev/null
+  record_gate 'provider-ledger reconciliation is clean' 'provider-ledger-reconciliation' operation "$production_subject" 1786584600 open '' ''
+
+  reconciliation_violation="$(jq -cn \
+    --arg fingerprint "$reconciliation_fingerprint" \
+    --argjson subject "$production_subject" \
+    --argjson context "$reconciliation_context" \
+    '{id:"provider-reconciliation-violated-v1",definitionId:"provider-ledger-reconciliation",definitionFingerprint:$fingerprint,stage:"operation",subject:$subject,context:$context,observedAt:1786584700,expiresAt:1786585600,outcome:"violated",report:"reports/provider-reconciliation-duplicate-or-wrong-amount-v1.json"}')"
+  post_value "/v1/projects/$project_id/observations" "$reconciliation_violation" >/dev/null
+  record_gate 'reconciliation detects duplicate or wrong amount' 'provider-ledger-reconciliation' operation "$production_subject" 1786584700 closed assertion-violated diagnose-violation
+
+  live_trace="$work_dir/live-trace.json"
+  jq -s \
+    --arg project "$project_id" \
+    --arg snapshot "$snapshot_id" \
+    --arg contract "$contract_fingerprint" \
+    '{kind:"live-protocol-replay",executionEvidence:true,project:$project,projectSnapshot:$snapshot,claimContract:$contract,subject:{revision:"demo-revision-redelivery-v1",environment:"ci"},events:.}' \
+    "$live_events" >"$live_trace"
+
+  jq -e --slurpfile expected "$expected_trace" \
+    '.projectSnapshot == $expected[0].projectSnapshot and .claimContract == $expected[0].claimContract and .events == $expected[0].events' \
+    "$live_trace" >/dev/null
+
+  account="$(curl --fail --silent --show-error "$assurance_url/v1/projects/$project_id/snapshot")"
+  printf '%s' "$account" | jq -e \
+    --arg snapshot "$snapshot_id" \
+    '
+      ([.account.projectSnapshots[].id] | contains([$snapshot])) and
+      (.account.definitions | length) == 4 and
+      (.account.qualifications | length) == 3 and
+      (.account.observations | length) == 6 and
+      ([.account.challenges[] | select(.id == "pit-cf4c9dae4714e07d")] | length) == 1
+    ' >/dev/null
+
+  jq -r '
+    "Assurance lifecycle (live service replay)",
+    (.events[] | "  \(.status | ascii_upcase)  t=\(.at)  \(.label)\(if (.reasons | length) == 0 then "" else " [\(.reasons | join(", "))]" end)")
+  ' "$live_trace"
+  printf '  PASS  service account retained 4 definitions, 3 qualifications, 6 observations, and 1 challenge\n'
+}
+
+require_command jq
+validate_recorded_trace
+
+case "${1:---recorded}" in
+  --recorded)
+    print_trace
+    ;;
+  --live)
+    run_live
+    ;;
+  *)
+    printf 'Usage: %s [--recorded|--live]\n' "$0" >&2
+    exit 2
+    ;;
+esac

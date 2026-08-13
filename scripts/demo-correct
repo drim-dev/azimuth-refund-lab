@@ -1,0 +1,156 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+LAB_URL=${REFUND_LAB_URL:-http://127.0.0.1:3000}
+POLL_SECONDS=${REFUND_LAB_POLL_SECONDS:-30}
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/demo-correct [--check]
+
+With no option, release a demo paused by scripts/demo-failure and verify convergence.
+The script changes delivery state; it does not modify source code.
+EOF
+}
+
+require_commands() {
+  for command_name in curl node; do
+    command -v "$command_name" >/dev/null 2>&1 || {
+      echo "missing required command: $command_name" >&2
+      exit 1
+    }
+  done
+}
+
+json_value() {
+  node -e '
+    const path = process.argv[1].split(".");
+    let body = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => body += chunk);
+    process.stdin.on("end", () => {
+      let value = JSON.parse(body);
+      for (const part of path) value = value?.[part];
+      if (value === undefined || value === null) process.exit(3);
+      process.stdout.write(typeof value === "object" ? JSON.stringify(value) : String(value));
+    });
+  ' "$1"
+}
+
+get_json() {
+  curl --fail --silent --show-error "$LAB_URL$1"
+}
+
+post_json() {
+  curl --fail --silent --show-error --request POST "$LAB_URL$1"
+}
+
+require_commands
+
+case "${1:-}" in
+  --check)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    echo "demo-correct prerequisites are available"
+    exit 0
+    ;;
+  "") ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
+
+"$PROJECT_ROOT/scripts/demo-doctor"
+
+failpoint_json=$(get_json /api/demo/failpoint)
+trip_json=$(get_json /api/trip)
+failpoint_state=$(printf '%s' "$failpoint_json" | json_value state)
+refund_count=$(printf '%s' "$trip_json" | json_value refunds.length)
+
+if [ "$failpoint_state" != "paused" ] || [ "$refund_count" != "1" ]; then
+  echo "expected one pending refund at the paused provider boundary" >&2
+  echo "run scripts/demo-failure from a pristine fixture first" >&2
+  exit 1
+fi
+
+paused_id=$(printf '%s' "$failpoint_json" | json_value pausedRefundId)
+projected_id=$(printf '%s' "$trip_json" | json_value refunds.0.refundId)
+projected_status=$(printf '%s' "$trip_json" | json_value refunds.0.status)
+[ "$paused_id" = "$projected_id" ] && [ "$projected_status" = "pending" ] || {
+  echo "paused worker identity and pending rider projection disagree" >&2
+  exit 1
+}
+
+before_ledger=$(get_json "/api/demo/provider-ledger/$paused_id")
+before_count=$(printf '%s' "$before_ledger" | json_value applicationCount)
+[ "$before_count" = "1" ] || {
+  echo "refusing release: provider application count is $before_count, expected 1" >&2
+  exit 1
+}
+
+released_json=$(post_json /api/demo/failpoint/release)
+released_state=$(printf '%s' "$released_json" | json_value state)
+[ "$released_state" = "released" ] || {
+  echo "worker did not accept the release request" >&2
+  exit 1
+}
+
+deadline=$(( $(date +%s) + POLL_SECONDS ))
+completed_trip=
+settled_failpoint=
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  if candidate_trip=$(get_json /api/trip 2>/dev/null) \
+    && candidate_failpoint=$(get_json /api/demo/failpoint 2>/dev/null); then
+    candidate_status=$(
+      printf '%s' "$candidate_trip" | json_value refunds.0.status 2>/dev/null || true
+    )
+    candidate_state=$(printf '%s' "$candidate_failpoint" | json_value state)
+    if [ "$candidate_status" = "succeeded" ] && [ "$candidate_state" = "idle" ]; then
+      completed_trip=$candidate_trip
+      settled_failpoint=$candidate_failpoint
+      break
+    fi
+  fi
+  sleep 0.2
+done
+
+[ -n "$completed_trip" ] || {
+  echo "refund did not converge within ${POLL_SECONDS}s" >&2
+  echo "leave the stack running for diagnosis; do not repeat release blindly" >&2
+  exit 1
+}
+
+completed_id=$(printf '%s' "$completed_trip" | json_value refunds.0.refundId)
+refund_amount=$(printf '%s' "$completed_trip" | json_value refunds.0.amount)
+refund_currency=$(printf '%s' "$completed_trip" | json_value refunds.0.currency)
+captured_amount=$(printf '%s' "$completed_trip" | json_value capturedAmount.amount)
+final_amount=$(printf '%s' "$completed_trip" | json_value finalCost.amount)
+interruption_count=$(printf '%s' "$settled_failpoint" | json_value interruptionCount)
+
+[ "$completed_id" = "$paused_id" ] \
+  && [ "$refund_amount" = "30" ] \
+  && [ "$refund_currency" = "EUR" ] \
+  && [ "$captured_amount" = "120" ] \
+  && [ "$final_amount" = "90" ] \
+  && [ "$interruption_count" = "1" ] || {
+  echo "completed rider projection does not match the one-refund journey" >&2
+  exit 1
+}
+
+after_ledger=$(get_json "/api/demo/provider-ledger/$paused_id")
+after_count=$(printf '%s' "$after_ledger" | json_value applicationCount)
+[ "$after_count" = "1" ] || {
+  echo "financial invariant violated: provider application count is $after_count" >&2
+  exit 1
+}
+
+echo "correct journey converged"
+echo "refund_id=$paused_id"
+echo "provider_applications=1"
+echo "rider_projection=succeeded"
+echo "worker_interruptions=1"

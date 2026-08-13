@@ -1,0 +1,133 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+OBSERVATION="$PROJECT_ROOT/tooling/pit/provider-refund-observation.json"
+TEACHING="$PROJECT_ROOT/demo/teaching/pit-survivor"
+SELECTED_STAGE="${TMPDIR:-/tmp}/azimuth-refund-lab-teaching-stage"
+cd "$PROJECT_ROOT"
+
+usage() {
+  echo "usage: scripts/pit-replay [--teaching-weak|--teaching-strong|--teaching-both]" >&2
+  echo "                          [--teaching-live|--application|--application-gate]" >&2
+  exit 2
+}
+
+summarize_teaching() {
+  mode=$1
+  node - "$TEACHING" "$mode" <<'NODE'
+const crypto = require("node:crypto");
+const fs = require("node:fs");
+const path = require("node:path");
+const root = process.argv[2];
+const mode = process.argv[3];
+const provenance = JSON.parse(fs.readFileSync(path.join(root, "report/provenance.json"), "utf8"));
+const hashes = {
+  "pom.xml": "pom.xml",
+  "RefundEffect.java": "src/main/java/dev/drim/azimuth/teaching/RefundEffect.java",
+  "WeakResponseOracleTest.java": "src/test/java/dev/drim/azimuth/teaching/WeakResponseOracleTest.java",
+  "StrongLedgerOracleTest.java": "src/test/java/dev/drim/azimuth/teaching/StrongLedgerOracleTest.java",
+};
+const sha256 = file => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+for (const [name, relative] of Object.entries(hashes)) {
+  const actual = sha256(path.join(root, relative));
+  if (actual !== provenance.inputs[name]) throw new Error(`${name} changed after the PIT run`);
+}
+const reports = mode === "both" ? ["weak", "strong"] : [mode];
+let identity;
+for (const reportName of reports) {
+  const reportPath = path.join(root, `report/${reportName}/mutations.xml`);
+  const xml = fs.readFileSync(reportPath, "utf8");
+  const expectedHash = provenance[`${reportName}_report_sha256`];
+  if (sha256(reportPath) !== expectedHash) throw new Error(`${reportName} PIT report changed`);
+  const attr = name => xml.match(new RegExp(`${name}='([^']+)'`))?.[1];
+  const text = name => xml.match(new RegExp(`<${name}>(.*?)</${name}>`))?.[1] ?? "";
+  const mutationIdentity = [
+    text("mutatedClass"), text("mutatedMethod"), text("lineNumber"), text("mutator"),
+    text("description"),
+  ].join("|");
+  if (identity && identity !== mutationIdentity) throw new Error("the two reports are not the same mutation");
+  identity = mutationIdentity;
+  const expectedStatus = reportName === "weak" ? "SURVIVED" : "KILLED";
+  if (attr("status") !== expectedStatus || attr("numberOfTestsRun") !== "1") {
+    throw new Error(`${reportName} PIT report does not contain the expected authentic result`);
+  }
+  console.log(`${reportName} oracle`);
+  console.log(`  mutant: ${text("description")} at ${text("mutatedClass")}.${text("mutatedMethod")}:${text("lineNumber")}`);
+  console.log(`  status: ${attr("status")} (1 test run)`);
+  console.log(`  oracle: ${reportName === "weak" ? "duplicate responses are equal" : "one financial effect after two deliveries"}`);
+}
+NODE
+}
+
+summarize_application() {
+  node - "$OBSERVATION" <<'NODE'
+const fs = require("node:fs");
+const document = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+const observation = document.observations?.[0];
+const assessment = observation?.payload?.assessments?.[0];
+if (!observation || !assessment) throw new Error("the compact PIT observation has no assessment");
+if (observation.kind !== "mutation-test" || observation.tool !== "PIT") {
+  throw new Error("the observation is not a PIT mutation-test result");
+}
+if (assessment.timed_out !== 11 || assessment.killed !== 0 || assessment.survived !== 0) {
+  throw new Error("the application observation no longer has the expected 11/0/0 account");
+}
+console.log("application experiment (separate from the teaching mutant)");
+console.log(`  observation: ${observation.id}`);
+console.log(`  outcome: ${observation.bindings?.[0]?.outcome}`);
+console.log(`  killed: ${assessment.killed}; survived: ${assessment.survived}; timed out: ${assessment.timed_out}`);
+console.log("  interpretation: adverse and inconclusive harness result");
+NODE
+}
+
+run_teaching() {
+  profile=$1
+  case "$profile" in
+    weak) maven_profile= ;;
+    strong) maven_profile=-Pstrong-oracle ;;
+    *) exit 2 ;;
+  esac
+  "$PROJECT_ROOT/mvnw" -o -B -f "$TEACHING/pom.xml" $maven_profile \
+    test org.pitest:pitest-maven:mutationCoverage
+  cmp "$TEACHING/target/pit-reports/mutations.xml" "$TEACHING/report/$profile/mutations.xml"
+}
+
+if [ "$#" -eq 0 ]; then
+  if [ -f "$SELECTED_STAGE" ]; then
+    selected=$(sed -n '1p' "$SELECTED_STAGE")
+  else
+    selected=surviving-mutant
+  fi
+  case "$selected" in
+    final-account) summarize_teaching strong ;;
+    *) summarize_teaching weak ;;
+  esac
+  exit
+fi
+
+[ "$#" -eq 1 ] || usage
+case "$1" in
+  --teaching-weak) summarize_teaching weak ;;
+  --teaching-strong) summarize_teaching strong ;;
+  --teaching-both) summarize_teaching both ;;
+  --teaching-live)
+    run_teaching weak
+    run_teaching strong
+    summarize_teaching both
+    ;;
+  --application) summarize_application ;;
+  --application-gate)
+    summarize_application
+    set +e
+    node "$PROJECT_ROOT/tooling/pit/require-clean.mjs" "$OBSERVATION"
+    actual=$?
+    set -e
+    if [ "$actual" -ne 2 ]; then
+      echo "the application review gate returned $actual; expected 2" >&2
+      exit 1
+    fi
+    echo "Observed the expected application review-gate rejection."
+    ;;
+  *) usage ;;
+esac

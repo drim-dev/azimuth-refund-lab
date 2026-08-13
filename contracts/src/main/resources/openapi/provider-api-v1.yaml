@@ -1,0 +1,149 @@
+openapi: 3.0.3
+info:
+  title: Provider Simulator API
+  version: 1.0.0
+paths:
+  /provider/v1/refunds/{refundId}:
+    get:
+      operationId: getProviderRefund
+      parameters:
+        - name: refundId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The provider's durable refund result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderRefundResponse'
+        '404':
+          description: The provider has no operation for the RefundId.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    put:
+      operationId: applyRefund
+      parameters:
+        - name: refundId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderRefundRequest'
+      responses:
+        '200':
+          description: The stored result for a new or identical repeated request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderRefundResponse'
+        '409':
+          description: The RefundId was already used with different financial fields.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /provider/v1/refunds/{refundId}/applications:
+    get:
+      operationId: countProviderRefundApplications
+      parameters:
+        - name: refundId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Count of durable provider applications for this RefundId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderRefundApplicationCount'
+components:
+  schemas:
+    ProviderRefundRequest:
+      type: object
+      additionalProperties: false
+      required: [paymentId, amount, currency]
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+          exclusiveMinimum: true
+          minimum: 0
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+      example:
+        paymentId: 33333333-3333-3333-3333-333333333333
+        amount: 30.00
+        currency: EUR
+    ProviderRefundResponse:
+      type: object
+      additionalProperties: false
+      required: [refundId, providerOperationId, outcome, appliedAt]
+      properties:
+        refundId:
+          type: string
+          format: uuid
+        providerOperationId:
+          type: string
+          format: uuid
+        outcome:
+          type: string
+          enum: [succeeded]
+        appliedAt:
+          type: string
+          format: date-time
+      example:
+        refundId: 44444444-4444-4444-4444-444444444444
+        providerOperationId: 66666666-6666-6666-6666-666666666666
+        outcome: succeeded
+        appliedAt: '2026-08-12T09:00:01Z'
+    ProviderRefundApplicationCount:
+      type: object
+      additionalProperties: false
+      required: [refundId, count]
+      properties:
+        refundId:
+          type: string
+          format: uuid
+        count:
+          type: integer
+          minimum: 0
+      example:
+        refundId: 44444444-4444-4444-4444-444444444444
+        count: 1
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference

@@ -1,0 +1,59 @@
+{
+  "format": "azimuth-assurance-project-snapshot",
+  "version": 1,
+  "id": "cd7da23b0344f39733fb55e74fe0498fb64cb370384a50dafd742624ef07dbf4",
+  "project": "azimuth-refund-lab",
+  "modelFingerprint": "1be091bf2d77c478ef108cc61a7a36aba3b000ab3a3fb579d99ac89118123035",
+  "claims": [
+    {
+      "contractFingerprint": "7f3653045d5810a1d6a0f0b99f1986026708784fa9e352bb917490bc66fea156",
+      "spec": "refunds/provider-effects",
+      "claim": "redelivery-after-provider-success",
+      "requirement": "approved-refund-applied-once",
+      "criticality": "critical",
+      "statement": "One approved refund SHALL cause at most one successful durable provider-ledger application even when delivery is repeated.",
+      "steps": [
+        {
+          "kind": "given",
+          "text": "a refund was approved with one stable RefundId"
+        },
+        {
+          "kind": "and",
+          "text": "the provider has durably applied it"
+        },
+        {
+          "kind": "when",
+          "text": "the worker is interrupted before publishing the result"
+        },
+        {
+          "kind": "and",
+          "text": "RabbitMQ redelivers the request any number of times"
+        },
+        {
+          "kind": "then",
+          "text": "every provider request uses that same RefundId, payment, amount and currency"
+        },
+        {
+          "kind": "and",
+          "text": "the provider ledger contains exactly one successful application for the approved amount"
+        },
+        {
+          "kind": "and",
+          "text": "the rider eventually sees one succeeded refund"
+        }
+      ],
+      "domain": "behaviour",
+      "verification": {
+        "strength": "demonstration",
+        "scope": "component",
+        "quantification": "universal",
+        "oracle": "relational",
+        "residualRequired": true,
+        "residual": null,
+        "residualAcceptance": null
+      },
+      "surface": null,
+      "obligatedAreas": []
+    }
+  ]
+}

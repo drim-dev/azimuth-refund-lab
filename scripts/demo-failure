@@ -1,0 +1,161 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+LAB_URL=${REFUND_LAB_URL:-http://127.0.0.1:3000}
+POLL_SECONDS=${REFUND_LAB_POLL_SECONDS:-30}
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/demo-failure [--check | --readiness]
+
+With no option, stop the demo at the post-provider/pre-result failure boundary.
+  --check      validate local prerequisites without contacting or changing the stack
+  --readiness  verify the running stack and its pristine fixture without changing it
+EOF
+}
+
+require_commands() {
+  for command_name in curl node; do
+    command -v "$command_name" >/dev/null 2>&1 || {
+      echo "missing required command: $command_name" >&2
+      exit 1
+    }
+  done
+}
+
+json_value() {
+  node -e '
+    const path = process.argv[1].split(".");
+    let body = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => body += chunk);
+    process.stdin.on("end", () => {
+      let value = JSON.parse(body);
+      for (const part of path) value = value?.[part];
+      if (value === undefined || value === null) process.exit(3);
+      process.stdout.write(typeof value === "object" ? JSON.stringify(value) : String(value));
+    });
+  ' "$1"
+}
+
+get_json() {
+  curl --fail --silent --show-error "$LAB_URL$1"
+}
+
+post_json() {
+  curl --fail --silent --show-error --request POST "$LAB_URL$1"
+}
+
+assert_pristine() {
+  failpoint_json=$(get_json /api/demo/failpoint)
+  trip_json=$(get_json /api/trip)
+  failpoint_state=$(printf '%s' "$failpoint_json" | json_value state)
+  interruption_count=$(printf '%s' "$failpoint_json" | json_value interruptionCount)
+  refund_count=$(printf '%s' "$trip_json" | json_value refunds.length)
+
+  if [ "$failpoint_state" != "idle" ] || [ "$interruption_count" != "0" ] \
+    || [ "$refund_count" != "0" ]; then
+    echo "demo fixture is not pristine; run scripts/demo-reset before rehearsing" >&2
+    echo "failpoint=$failpoint_state interruptions=$interruption_count refunds=$refund_count" >&2
+    exit 1
+  fi
+}
+
+require_commands
+
+case "${1:-}" in
+  --check)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    echo "demo-failure prerequisites are available"
+    exit 0
+    ;;
+  --readiness)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    "$PROJECT_ROOT/scripts/demo-doctor"
+    assert_pristine
+    echo "refund demo is ready and pristine"
+    exit 0
+    ;;
+  "") ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
+
+"$PROJECT_ROOT/scripts/demo-doctor"
+assert_pristine
+
+armed_json=$(post_json /api/demo/failpoint/arm)
+armed_state=$(printf '%s' "$armed_json" | json_value state)
+[ "$armed_state" = "armed" ] || {
+  echo "worker did not arm the post-provider failpoint" >&2
+  exit 1
+}
+
+if ! approved_json=$(post_json /api/refunds); then
+  echo "refund approval failed after arming; reset the demo before retrying" >&2
+  exit 1
+fi
+approved_id=$(printf '%s' "$approved_json" | json_value refundId)
+
+deadline=$(( $(date +%s) + POLL_SECONDS ))
+paused_json=
+trip_json=
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  if candidate_failpoint=$(get_json /api/demo/failpoint 2>/dev/null) \
+    && candidate_trip=$(get_json /api/trip 2>/dev/null); then
+    candidate_state=$(printf '%s' "$candidate_failpoint" | json_value state)
+    candidate_refunds=$(printf '%s' "$candidate_trip" | json_value refunds.length)
+    if [ "$candidate_state" = "paused" ] && [ "$candidate_refunds" = "1" ]; then
+      candidate_status=$(printf '%s' "$candidate_trip" | json_value refunds.0.status)
+      if [ "$candidate_status" = "pending" ]; then
+        paused_json=$candidate_failpoint
+        trip_json=$candidate_trip
+        break
+      fi
+    fi
+  fi
+  sleep 0.2
+done
+
+[ -n "$paused_json" ] || {
+  echo "worker did not reach the failure boundary within ${POLL_SECONDS}s" >&2
+  echo "leave the stack running for diagnosis or run scripts/demo-reset" >&2
+  exit 1
+}
+
+paused_id=$(printf '%s' "$paused_json" | json_value pausedRefundId)
+projected_id=$(printf '%s' "$trip_json" | json_value refunds.0.refundId)
+projected_amount=$(printf '%s' "$trip_json" | json_value refunds.0.amount)
+projected_currency=$(printf '%s' "$trip_json" | json_value refunds.0.currency)
+final_amount=$(printf '%s' "$trip_json" | json_value finalCost.amount)
+
+[ "$approved_id" = "$paused_id" ] && [ "$approved_id" = "$projected_id" ] || {
+  echo "refund identity changed across approval, worker and rider projection" >&2
+  exit 1
+}
+[ "$projected_amount" = "30" ] && [ "$projected_currency" = "EUR" ] \
+  && [ "$final_amount" = "90" ] || {
+  echo "pending refund financial content differs from the approved correction" >&2
+  exit 1
+}
+
+ledger_json=$(get_json "/api/demo/provider-ledger/$approved_id")
+ledger_id=$(printf '%s' "$ledger_json" | json_value refund.refundId)
+application_count=$(printf '%s' "$ledger_json" | json_value applicationCount)
+[ "$ledger_id" = "$approved_id" ] && [ "$application_count" = "1" ] || {
+  echo "provider ledger does not contain exactly one application for $approved_id" >&2
+  exit 1
+}
+
+echo "failure boundary reached"
+echo "refund_id=$approved_id"
+echo "provider_applications=1"
+echo "rider_projection=pending"
+echo "worker=paused_after_provider_response"

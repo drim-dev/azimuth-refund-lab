@@ -1,0 +1,14 @@
+{
+  "name": "azimuth-refund-system-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:compose": "./run-compose"
+  },
+  "devDependencies": {
+    "@azimuth/tags": "file:../../tooling/azimuth-typescript",
+    "@playwright/test": "1.58.2"
+  }
+}

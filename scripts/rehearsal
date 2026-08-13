@@ -1,0 +1,96 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/rehearsal <command>
+
+Commands:
+  check          syntax-check scripts, Compose, and offline source checksums
+  reset          reset project-scoped volumes and start the pinned local images
+  readiness      read-only check that a running demo is healthy and pristine
+  run            reset project-scoped volumes and execute failure + correction without building
+  offline-check  require every runtime image locally and verify source checksums
+
+The run command is intentionally explicit because demo-reset removes this Compose project's
+volumes. It does not remove images, unrelated containers, or unrelated volumes.
+EOF
+}
+
+checksum_program() {
+  if command -v shasum >/dev/null 2>&1; then
+    echo "shasum -a 256"
+  elif command -v sha256sum >/dev/null 2>&1; then
+    echo "sha256sum"
+  else
+    echo "missing shasum or sha256sum" >&2
+    exit 1
+  fi
+}
+
+verify_checksums() {
+  checksum_command=$(checksum_program)
+  cd "$PROJECT_ROOT"
+  # Both checksum programs accept the same two-column manifest with their check option.
+  $checksum_command --check artifacts/offline/source-inputs.sha256
+}
+
+check_scripts() {
+  sh -n "$PROJECT_ROOT/scripts/demo-failure"
+  sh -n "$PROJECT_ROOT/scripts/demo-correct"
+  sh -n "$PROJECT_ROOT/scripts/rehearsal"
+  "$PROJECT_ROOT/scripts/demo-failure" --check
+  "$PROJECT_ROOT/scripts/demo-correct" --check
+}
+
+case "${1:-}" in
+  check)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    check_scripts
+    docker compose --project-directory "$PROJECT_ROOT" config --quiet
+    verify_checksums
+    echo "rehearsal package is internally consistent"
+    ;;
+  readiness)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    "$PROJECT_ROOT/scripts/demo-failure" --readiness
+    ;;
+  reset)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    docker compose --project-directory "$PROJECT_ROOT" down --volumes --remove-orphans
+    docker compose --project-directory "$PROJECT_ROOT" up --detach --no-build
+    "$PROJECT_ROOT/scripts/demo-failure" --readiness
+    ;;
+  run)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    started_at=$(date +%s)
+    "$PROJECT_ROOT/scripts/rehearsal" reset
+    "$PROJECT_ROOT/scripts/demo-failure"
+    "$PROJECT_ROOT/scripts/demo-correct"
+    elapsed=$(( $(date +%s) - started_at ))
+    echo "machine rehearsal completed in ${elapsed}s"
+    echo "human 45-minute talk rehearsal and manual-QA attestation remain pending"
+    ;;
+  offline-check)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    check_scripts
+    verify_checksums
+    while IFS= read -r image_name; do
+      case "$image_name" in ""|'#'*) continue ;; esac
+      docker image inspect "$image_name" >/dev/null || {
+        echo "missing offline runtime image: $image_name" >&2
+        exit 1
+      }
+    done < "$PROJECT_ROOT/artifacts/offline/images.txt"
+    echo "offline runtime inputs are present"
+    ;;
+  -h|--help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac

@@ -1,0 +1,122 @@
+name: azimuth-refund-lab
+
+services:
+  refund-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: refunds
+      POSTGRES_USER: refunds
+      POSTGRES_PASSWORD: refunds
+    volumes:
+      - refund-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U refunds -d refunds"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  provider-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: provider
+      POSTGRES_USER: provider
+      POSTGRES_PASSWORD: provider
+    volumes:
+      - provider-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U provider -d provider"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbit-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  provider:
+    image: azimuth-refund-provider:local
+    build:
+      context: .
+      dockerfile: services/provider-simulator/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://provider-db:5432/provider
+      DB_USERNAME: provider
+      DB_PASSWORD: provider
+    ports:
+      - "8082:8082"
+    depends_on:
+      provider-db:
+        condition: service_healthy
+
+  refund-api:
+    image: azimuth-refund-api:local
+    build:
+      context: .
+      dockerfile: services/refund-api/Dockerfile
+    environment:
+      REFUND_DB_URL: jdbc:postgresql://refund-db:5432/refunds
+      REFUND_DB_USERNAME: refunds
+      REFUND_DB_PASSWORD: refunds
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+    ports:
+      - "8080:8080"
+    depends_on:
+      refund-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  refund-worker:
+    image: azimuth-refund-worker:local
+    build:
+      context: .
+      dockerfile: services/refund-worker/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      PROVIDER_BASE_URL: http://provider:8082
+    ports:
+      - "8081:8081"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      provider:
+        condition: service_started
+
+  web:
+    image: azimuth-refund-web:local
+    build:
+      context: web
+    environment:
+      REFUND_API_URL: http://refund-api:8080
+      WORKER_URL: http://refund-worker:8081
+      PROVIDER_URL: http://provider:8082
+    ports:
+      - "3000:3000"
+    depends_on:
+      refund-api:
+        condition: service_started
+      refund-worker:
+        condition: service_started
+      provider:
+        condition: service_started
+
+volumes:
+  refund-data:
+  provider-data:
+  rabbit-data:

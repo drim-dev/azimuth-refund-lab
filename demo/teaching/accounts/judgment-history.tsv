@@ -1,0 +1,5 @@
+# sequence|claim|verdict|provenance|reason
+1|provider-refund-applied-once|sound|constructed false positive|The first judge trusted the declared tag and response assertion.
+2|provider-refund-applied-once|dishonest-tag|constructed correction|Reading the body showed that universal and relational were not honest declarations.
+3|provider-refund-applied-once|toothless|constructed correction|A response-only oracle still accepted a duplicate financial effect.
+4|provider-refund-applied-once|sound|authentic current account|Direct component evidence reads the authoritative provider ledger; the application PIT timeout residual remains explicit.

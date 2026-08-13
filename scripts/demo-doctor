@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+
+for command in docker curl; do
+  command -v "$command" >/dev/null 2>&1 || {
+    echo "missing required command: $command" >&2
+    exit 1
+  }
+done
+
+docker info >/dev/null
+docker compose version >/dev/null
+
+deadline=$(( $(date +%s) + 120 ))
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  if curl --fail --silent http://localhost:8080/actuator/health >/dev/null \
+    && curl --fail --silent http://localhost:8082/actuator/health >/dev/null \
+    && curl --fail --silent http://localhost:3000 >/dev/null; then
+    echo "refund demo is ready"
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "refund demo did not become ready within 120 seconds" >&2
+docker compose ps >&2
+exit 1

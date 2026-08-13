@@ -1,0 +1,27 @@
+{
+  "executed_at": "2026-08-13T02:18:04+06:00",
+  "strong_oracle_executed_at": "2026-08-13T02:18:23+06:00",
+  "java_release": 21,
+  "pit_version": "1.22.0",
+  "junit_platform_plugin_version": "1.2.3",
+  "weak_command": "./mvnw -o -B -f demo/teaching/pit-survivor/pom.xml test org.pitest:pitest-maven:mutationCoverage",
+  "strong_command": "./mvnw -o -B -f demo/teaching/pit-survivor/pom.xml -Pstrong-oracle test org.pitest:pitest-maven:mutationCoverage",
+  "inputs": {
+    "pom.xml": "2de40bca8cb8fe1185ae168f9e9d9e0f1a98f78ff46f8a580b472e8dd992d331",
+    "RefundEffect.java": "702c12bf0301c7c662ac4ca57a3a2333cc0b2c343ac92a13527440cd67d18fa6",
+    "WeakResponseOracleTest.java": "e836e0e79a4e6ee30be6312f9d167c1fe7ce38392c600e2a16f480a952b3ecfc",
+    "StrongLedgerOracleTest.java": "828f905959698d2ffee9614aef83c2b1b8b92de3bd2497566b380bb976c07af9"
+  },
+  "weak_report_sha256": "cda40583bade5b5bb647f425084c90c5611e5ac16a0658ba4ae66aa134d10925",
+  "strong_report_sha256": "647fe31000679dbe32dda575666ace06ed2b43023ba6d1ad5edfd9f18be7aee9",
+  "weak_result": {
+    "generated": 1,
+    "killed": 0,
+    "survived": 1
+  },
+  "strong_result": {
+    "generated": 1,
+    "killed": 1,
+    "survived": 0
+  }
+}

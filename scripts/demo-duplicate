@@ -1,0 +1,67 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+LAB_URL=${REFUND_LAB_URL:-http://127.0.0.1:3000}
+POLL_SECONDS=${REFUND_LAB_POLL_SECONDS:-30}
+
+json_value() {
+  node -e '
+    const path = process.argv[1].split(".");
+    let body = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", chunk => body += chunk);
+    process.stdin.on("end", () => {
+      let value = JSON.parse(body);
+      for (const part of path) value = value?.[part];
+      if (value === undefined || value === null) process.exit(3);
+      process.stdout.write(typeof value === "object" ? JSON.stringify(value) : String(value));
+    });
+  ' "$1"
+}
+
+for command_name in docker curl node; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    echo "missing required command: $command_name" >&2
+    exit 1
+  }
+done
+
+docker compose --project-directory "$PROJECT_ROOT" down --volumes --remove-orphans
+docker compose \
+  --project-directory "$PROJECT_ROOT" \
+  -f "$PROJECT_ROOT/compose.yaml" \
+  -f "$PROJECT_ROOT/compose.demo.yaml" \
+  -f "$PROJECT_ROOT/compose.failure.yaml" \
+  up --detach --no-build
+"$PROJECT_ROOT/scripts/demo-doctor"
+
+failure_output=$("$PROJECT_ROOT/scripts/demo-failure")
+printf '%s\n' "$failure_output"
+refund_id=$(printf '%s\n' "$failure_output" | sed -n 's/^refund_id=//p')
+test -n "$refund_id"
+
+curl --fail --silent --show-error --request POST \
+  "$LAB_URL/api/demo/failpoint/release" >/dev/null
+
+deadline=$(( $(date +%s) + POLL_SECONDS ))
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  trip=$(curl --fail --silent --show-error "$LAB_URL/api/trip" 2>/dev/null || true)
+  ledger=$(curl --fail --silent --show-error \
+    "$LAB_URL/api/demo/provider-ledger/$refund_id" 2>/dev/null || true)
+  status=$(printf '%s' "$trip" | json_value refunds.0.status 2>/dev/null || true)
+  count=$(printf '%s' "$ledger" | json_value applicationCount 2>/dev/null || true)
+  if [ "$status" = "succeeded" ] && [ "$count" = "2" ]; then
+    echo "duplicate financial effect reproduced"
+    echo "refund_id=$refund_id"
+    echo "provider_applications=2"
+    echo "refunded_total=EUR_60"
+    echo "mode=demo-only-unsafe-provider"
+    exit 0
+  fi
+  sleep 0.2
+done
+
+echo "duplicate effect did not become visible within ${POLL_SECONDS}s" >&2
+echo "leave the unsafe stack running for diagnosis; reset before another attempt" >&2
+exit 1

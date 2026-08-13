@@ -1,0 +1,22 @@
+{
+  "id": "refund-redelivery-component",
+  "claim": {
+    "spec": "refunds/provider-effects",
+    "claim": "redelivery-after-provider-success",
+    "contractFingerprint": "7f3653045d5810a1d6a0f0b99f1986026708784fa9e352bb917490bc66fea156"
+  },
+  "assertion": "Repeated and concurrently competing deliveries leave one matching durable provider-ledger application.",
+  "scope": "component",
+  "quantification": "universal",
+  "oracle": "relational",
+  "stage": "merge",
+  "inputs": [
+    "services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java",
+    "services/refund-worker/src/test/java/dev/drim/azimuth/refund/worker/RefundWorkerComponentTest.java"
+  ],
+  "requiredContext": {
+    "database": "postgresql",
+    "execution-profile": "component-testcontainers"
+  },
+  "declaredAt": 1786583700
+}

@@ -1,0 +1,97 @@
+{
+  "kind": "recorded-protocol-expectation",
+  "executionEvidence": false,
+  "project": "azimuth-refund-lab",
+  "projectSnapshot": "cd7da23b0344f39733fb55e74fe0498fb64cb370384a50dafd742624ef07dbf4",
+  "claimContract": "7f3653045d5810a1d6a0f0b99f1986026708784fa9e352bb917490bc66fea156",
+  "subject": {
+    "revision": "demo-revision-redelivery-v1",
+    "environment": "ci"
+  },
+  "productionSubject": {
+    "revision": "demo-revision-redelivery-v1",
+    "artifactDigest": "sha256:8c20f22ef61f9f44aaf8358a16c6aeec0c53e9f72975ec7a86e3c426de5a0377",
+    "deploymentId": "joker-canary-001",
+    "environment": "production",
+    "cohort": "5-percent"
+  },
+  "events": [
+    {
+      "label": "current satisfied observation",
+      "at": 1786582800,
+      "status": "open",
+      "reasons": [],
+      "work": []
+    },
+    {
+      "label": "observation reaches declared expiry",
+      "at": 1786583400,
+      "status": "closed",
+      "reasons": ["observation-expired"],
+      "work": ["renew-observation"]
+    },
+    {
+      "label": "new exact-revision observation violates assertion",
+      "at": 1786583500,
+      "status": "closed",
+      "reasons": ["assertion-violated"],
+      "work": ["diagnose-violation"]
+    },
+    {
+      "label": "later exact-revision observation is satisfied",
+      "at": 1786583550,
+      "status": "open",
+      "reasons": [],
+      "work": []
+    },
+    {
+      "label": "PIT challenge reports findings",
+      "at": 1786583600,
+      "status": "closed",
+      "reasons": ["challenge-findings"],
+      "work": ["judge-challenge"]
+    },
+    {
+      "label": "definition semantics drift",
+      "at": 1786583700,
+      "status": "closed",
+      "reasons": ["qualification-stale"],
+      "work": ["qualify-definition"]
+    },
+    {
+      "label": "exact bounded canary is healthy",
+      "at": 1786583800,
+      "status": "open",
+      "reasons": [],
+      "work": []
+    },
+    {
+      "label": "another artifact deployment and cohort cannot reuse the canary observation",
+      "at": 1786583801,
+      "status": "closed",
+      "reasons": ["subject-mismatch"],
+      "work": ["rerun-for-subject"]
+    },
+    {
+      "label": "canary observation reaches its ten-minute expiry",
+      "at": 1786584400,
+      "status": "closed",
+      "reasons": ["observation-expired"],
+      "work": ["renew-observation"]
+    },
+    {
+      "label": "provider-ledger reconciliation is clean",
+      "at": 1786584600,
+      "status": "open",
+      "reasons": [],
+      "work": []
+    },
+    {
+      "label": "reconciliation detects duplicate or wrong amount",
+      "at": 1786584700,
+      "status": "closed",
+      "reasons": ["assertion-violated"],
+      "work": ["diagnose-violation"]
+    }
+  ]
+}

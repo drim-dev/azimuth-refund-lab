@@ -1,0 +1,101 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+AZIMUTH="$PROJECT_ROOT/.cache/azimuth-tools/bin/azimuth"
+FIXTURE_ROOT="$PROJECT_ROOT/demo/teaching/fixtures"
+SELECTED_STAGE="${TMPDIR:-/tmp}/azimuth-refund-lab-teaching-stage"
+cd "$PROJECT_ROOT"
+
+usage() {
+  echo "usage: scripts/azimuth-check [--fixture <stage>]" >&2
+  echo "fixtures: missing-cover, wrong-evidence-form, dishonest-green, weak-oracle," >&2
+  echo "          surviving-mutant, stale-judgment, final-account" >&2
+  exit 2
+}
+
+if [ ! -x "$AZIMUTH" ]; then
+  "$PROJECT_ROOT/scripts/bootstrap-azimuth"
+fi
+
+run_current() {
+  "$AZIMUTH" check \
+    --manifest "$PROJECT_ROOT/.azimuth/linkage.json" \
+    --manifest "$PROJECT_ROOT/tooling/pit/provider-refund-observation.json"
+}
+
+run_fixture_expect() {
+  stage=$1
+  expected=$2
+  diagnostic=$3
+  model="$FIXTURE_ROOT/base/model"
+  manifest="$FIXTURE_ROOT/manifests/$stage.json"
+
+  if [ "$stage" = "stale-judgment" ]; then
+    model="$FIXTURE_ROOT/stale/model"
+  fi
+
+  set +e
+  output=$("$AZIMUTH" check \
+    --model "$model" \
+    --standards "$FIXTURE_ROOT/base/standards.md" \
+    --manifest "$manifest" 2>&1)
+  actual=$?
+  set -e
+  printf '%s\n' "$output"
+
+  if [ "$actual" -ne "$expected" ]; then
+    echo "fixture $stage returned $actual; expected $expected" >&2
+    exit 1
+  fi
+  if ! printf '%s\n' "$output" | grep -F "$diagnostic" >/dev/null; then
+    echo "fixture $stage did not produce expected diagnostic: $diagnostic" >&2
+    exit 1
+  fi
+
+  if [ "$expected" -ne 0 ]; then
+    echo "Observed the expected machine-tier rejection for constructed fixture: $stage"
+  fi
+}
+
+if [ "$#" -eq 0 ]; then
+  if [ -f "$SELECTED_STAGE" ]; then
+    selected=$(sed -n '1p' "$SELECTED_STAGE")
+  else
+    selected=final-account
+  fi
+  case "$selected" in
+    missing-cover) run_fixture_expect "$selected" 1 " error uncovered " ;;
+    wrong-evidence-form) run_fixture_expect "$selected" 1 " error wrong-form " ;;
+    dishonest-green|weak-oracle) run_fixture_expect "$selected" 0 "no holes" ;;
+    stale-judgment) run_fixture_expect "$selected" 1 " error stale-judgment " ;;
+    surviving-mutant|final-account) run_current ;;
+    *) echo "invalid selected teaching stage: $selected" >&2; exit 2 ;;
+  esac
+  exit
+fi
+
+if [ "$#" -ne 2 ] || [ "$1" != "--fixture" ]; then
+  usage
+fi
+
+case "$2" in
+  missing-cover)
+    run_fixture_expect "$2" 1 " error uncovered "
+    ;;
+  wrong-evidence-form)
+    run_fixture_expect "$2" 1 " error wrong-form "
+    ;;
+  dishonest-green|weak-oracle)
+    run_fixture_expect "$2" 0 "no holes"
+    ;;
+  stale-judgment)
+    run_fixture_expect "$2" 1 " error stale-judgment "
+    ;;
+  surviving-mutant|final-account)
+    run_current
+    ;;
+  *)
+    usage
+    ;;
+esac

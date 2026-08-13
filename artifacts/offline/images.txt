@@ -1,0 +1,7 @@
+# Compose runtime images required after the application images have been built.
+postgres:18-alpine
+rabbitmq:4.2-management-alpine
+azimuth-refund-provider:local
+azimuth-refund-api:local
+azimuth-refund-worker:local
+azimuth-refund-web:local

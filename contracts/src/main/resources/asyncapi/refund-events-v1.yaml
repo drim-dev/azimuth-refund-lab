@@ -1,0 +1,100 @@
+asyncapi: 3.0.0
+info:
+  title: Refund events
+  version: 1.0.0
+channels:
+  refundRequestedV1:
+    address: refund.requested.v1
+    messages:
+      refundRequestedV1:
+        $ref: '#/components/messages/RefundRequestedV1'
+  refundResultV1:
+    address: refund.result.v1
+    messages:
+      refundResultV1:
+        $ref: '#/components/messages/RefundResultV1'
+operations:
+  consumeRefundRequestedV1:
+    action: receive
+    channel:
+      $ref: '#/channels/refundRequestedV1'
+  consumeRefundResultV1:
+    action: receive
+    channel:
+      $ref: '#/channels/refundResultV1'
+components:
+  messages:
+    RefundRequestedV1:
+      name: refund.requested.v1
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/RefundRequestedV1'
+    RefundResultV1:
+      name: refund.result.v1
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/RefundResultV1'
+  schemas:
+    RefundRequestedV1:
+      type: object
+      additionalProperties: false
+      required:
+        - eventId
+        - eventType
+        - eventVersion
+        - occurredAt
+        - refundId
+        - paymentId
+        - amount
+        - currency
+        - approvedBy
+      properties:
+        eventId: {type: string, format: uuid}
+        eventType: {type: string, const: refund.requested.v1}
+        eventVersion: {type: integer, const: 1}
+        occurredAt: {type: string, format: date-time}
+        refundId: {type: string, format: uuid}
+        paymentId: {type: string, format: uuid}
+        amount: {type: number, exclusiveMinimum: 0}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        approvedBy: {type: string, minLength: 1}
+      example:
+        eventId: 55555555-5555-5555-5555-555555555555
+        eventType: refund.requested.v1
+        eventVersion: 1
+        occurredAt: '2026-08-12T09:00:00Z'
+        refundId: 44444444-4444-4444-4444-444444444444
+        paymentId: 33333333-3333-3333-3333-333333333333
+        amount: 30.00
+        currency: EUR
+        approvedBy: support-fixture
+    RefundResultV1:
+      type: object
+      additionalProperties: false
+      required:
+        - eventId
+        - eventType
+        - eventVersion
+        - occurredAt
+        - refundId
+        - providerOperationId
+        - outcome
+        - appliedAt
+      properties:
+        eventId: {type: string, format: uuid}
+        eventType: {type: string, const: refund.result.v1}
+        eventVersion: {type: integer, const: 1}
+        occurredAt: {type: string, format: date-time}
+        refundId: {type: string, format: uuid}
+        providerOperationId: {type: string, format: uuid}
+        outcome: {type: string, enum: [succeeded]}
+        appliedAt: {type: string, format: date-time}
+      example:
+        eventId: 77777777-7777-7777-7777-777777777777
+        eventType: refund.result.v1
+        eventVersion: 1
+        occurredAt: '2026-08-12T09:00:01Z'
+        refundId: 44444444-4444-4444-4444-444444444444
+        providerOperationId: 66666666-6666-6666-6666-666666666666
+        outcome: succeeded
+        appliedAt: '2026-08-12T09:00:01Z'

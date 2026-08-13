@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+docker compose --project-directory "$PROJECT_ROOT" down --volumes --remove-orphans
+docker compose --project-directory "$PROJECT_ROOT" up --detach --build

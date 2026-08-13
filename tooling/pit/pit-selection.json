@@ -1,0 +1,34 @@
+{
+  "schema": "azimuth-pit-selection/1",
+  "target_classes": [
+    "dev.drim.azimuth.refund.provider.ProviderLedgerEntry",
+    "dev.drim.azimuth.refund.provider.ProviderRefundLedger",
+    "dev.drim.azimuth.refund.provider.ProviderRefundService"
+  ],
+  "selected_tests": [
+    {
+      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.changedFinancialFieldIsAConflict",
+      "pit_names": [
+        "changedFinancialFieldIsAConflict(dev.drim.azimuth.refund.provider.ProviderRefundComponentTest)"
+      ]
+    },
+    {
+      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.competingPayloadsSettleOnOneRefundIdentity",
+      "pit_names": [
+        "competingPayloadsSettleOnOneRefundIdentity(dev.drim.azimuth.refund.provider.ProviderRefundComponentTest)"
+      ]
+    },
+    {
+      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.concurrentIdenticalRepeatsReturnOneStoredOperation",
+      "pit_names": [
+        "concurrentIdenticalRepeatsReturnOneStoredOperation(dev.drim.azimuth.refund.provider.ProviderRefundComponentTest)"
+      ]
+    },
+    {
+      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.identicalRepeatReturnsTheStoredResponseAndOneLedgerOperation",
+      "pit_names": [
+        "identicalRepeatReturnsTheStoredResponseAndOneLedgerOperation(dev.drim.azimuth.refund.provider.ProviderRefundComponentTest)"
+      ]
+    }
+  ]
+}

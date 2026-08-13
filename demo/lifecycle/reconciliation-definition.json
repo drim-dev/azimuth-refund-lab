@@ -1,0 +1,22 @@
+{
+  "id": "provider-ledger-reconciliation",
+  "claim": {
+    "spec": "refunds/provider-effects",
+    "claim": "redelivery-after-provider-success",
+    "contractFingerprint": "7f3653045d5810a1d6a0f0b99f1986026708784fa9e352bb917490bc66fea156"
+  },
+  "assertion": "Each succeeded refund has exactly one provider-ledger row with the approved amount and currency.",
+  "scope": "operational",
+  "quantification": "universal",
+  "oracle": "relational",
+  "stage": "operation",
+  "inputs": [
+    "provider-ledger/reconciliation-detector@sha256:operation-v1",
+    "refund-api/succeeded-projection@sha256:operation-v1"
+  ],
+  "requiredContext": {
+    "reconciliation-window": "15m",
+    "provider-environment": "simulated-production"
+  },
+  "declaredAt": 1786584550
+}

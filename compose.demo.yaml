@@ -1,0 +1,9 @@
+services:
+  refund-api:
+    pull_policy: never
+  refund-worker:
+    pull_policy: never
+  provider:
+    pull_policy: never
+  web:
+    pull_policy: never

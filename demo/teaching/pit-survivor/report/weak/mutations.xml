@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mutations partial="true">
+<mutation detected='false' status='SURVIVED' numberOfTestsRun='1'><sourceFile>RefundEffect.java</sourceFile><mutatedClass>dev.drim.azimuth.teaching.RefundEffect</mutatedClass><mutatedMethod>apply</mutatedMethod><methodDescription>(Ljava/lang/String;)Ljava/lang/String;</methodDescription><lineNumber>11</lineNumber><mutator>org.pitest.mutationtest.engine.gregor.mutators.RemoveConditionalMutator_EQUAL_IF</mutator><indexes><index>7</index></indexes><blocks><block>1</block></blocks><killingTest/><description>removed conditional - replaced equality check with true</description></mutation>
+</mutations>

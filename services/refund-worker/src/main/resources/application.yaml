@@ -1,0 +1,27 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: refund-worker
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 1
+
+refund:
+  provider:
+    base-url: ${PROVIDER_BASE_URL:http://localhost:8082}
+    request-timeout: ${PROVIDER_REQUEST_TIMEOUT:5s}
+  messaging:
+    confirm-timeout: ${PUBLISH_CONFIRM_TIMEOUT:5s}

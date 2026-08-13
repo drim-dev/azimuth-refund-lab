@@ -1,0 +1,11 @@
+{
+  "eventId": "55555555-5555-5555-5555-555555555555",
+  "eventType": "refund.requested.v1",
+  "eventVersion": 1,
+  "occurredAt": "2026-08-12T09:00:00Z",
+  "refundId": "44444444-4444-4444-4444-444444444444",
+  "paymentId": "33333333-3333-3333-3333-333333333333",
+  "amount": 30.00,
+  "currency": "EUR",
+  "approvedBy": "support-fixture"
+}
