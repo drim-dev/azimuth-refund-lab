@@ -23,5 +23,7 @@ refund:
   provider:
     base-url: ${PROVIDER_BASE_URL:http://localhost:8082}
     request-timeout: ${PROVIDER_REQUEST_TIMEOUT:5s}
+    demo:
+      new-key-per-delivery: ${PROVIDER_DEMO_NEW_KEY_PER_DELIVERY:false}
   messaging:
     confirm-timeout: ${PUBLISH_CONFIRM_TIMEOUT:5s}

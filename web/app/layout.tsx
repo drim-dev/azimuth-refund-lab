@@ -4,7 +4,7 @@ import "./styles.css";
 
 export const metadata: Metadata = {
   title: "Refund correction lab",
-  description: "A traceable refund journey across the API, worker, and provider ledger.",
+  description: "A traceable refund journey across the API, worker, and payment provider.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

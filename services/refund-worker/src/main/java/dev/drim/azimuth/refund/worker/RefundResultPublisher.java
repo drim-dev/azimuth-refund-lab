@@ -1,5 +1,7 @@
 package dev.drim.azimuth.refund.worker;
 
+import dev.drim.azimuth.Azimuth.ImplementsMechanism;
+import dev.drim.azimuth.Azimuth.Realizes;
 import dev.drim.azimuth.refund.contracts.event.RefundMessaging;
 import dev.drim.azimuth.refund.contracts.event.RefundResultV1;
 import java.time.Duration;
@@ -31,6 +33,8 @@ class RefundResultPublisher {
         this.confirmTimeout = confirmTimeout;
     }
 
+    @Realizes(spec = "refunds/execution", scenario = "interrupted-processing-eventually-completes")
+    @ImplementsMechanism(spec = "refunds/execution", mechanism = "confirmed-refund-result")
     void publishConfirmed(RefundResultV1 result) {
         MessageProperties properties = new MessageProperties();
         properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);

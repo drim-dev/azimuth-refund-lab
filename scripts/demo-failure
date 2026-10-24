@@ -2,7 +2,7 @@
 set -eu
 
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-LAB_URL=${REFUND_LAB_URL:-http://127.0.0.1:3000}
+LAB_URL=${REFUND_LAB_URL:-http://127.0.0.1:3100}
 POLL_SECONDS=${REFUND_LAB_POLL_SECONDS:-30}
 
 usage() {
@@ -146,16 +146,20 @@ final_amount=$(printf '%s' "$trip_json" | json_value finalCost.amount)
   exit 1
 }
 
-ledger_json=$(get_json "/api/demo/provider-ledger/$approved_id")
-ledger_id=$(printf '%s' "$ledger_json" | json_value refund.refundId)
-application_count=$(printf '%s' "$ledger_json" | json_value applicationCount)
-[ "$ledger_id" = "$approved_id" ] && [ "$application_count" = "1" ] || {
-  echo "provider ledger does not contain exactly one application for $approved_id" >&2
+history_json=$(get_json "/api/demo/provider-ledger/$approved_id")
+history_id=$(printf '%s' "$history_json" | json_value refundId)
+attempt_count=$(printf '%s' "$history_json" | json_value attempts.length)
+operation_count=$(printf '%s' "$history_json" | json_value operations.length)
+application_count=$(printf '%s' "$history_json" | json_value applicationCount)
+[ "$history_id" = "$approved_id" ] && [ "$attempt_count" = "1" ] \
+  && [ "$operation_count" = "1" ] && [ "$application_count" = "1" ] || {
+  echo "provider history does not contain one attempt and one financial effect for $approved_id" >&2
   exit 1
 }
 
 echo "failure boundary reached"
 echo "refund_id=$approved_id"
+echo "provider_attempts=1"
 echo "provider_applications=1"
 echo "rider_projection=pending"
 echo "worker=paused_after_provider_response"

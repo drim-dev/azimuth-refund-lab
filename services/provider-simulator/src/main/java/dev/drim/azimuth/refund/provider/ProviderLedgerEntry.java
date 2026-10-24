@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 record ProviderLedgerEntry(
+        String idempotencyKey,
         UUID refundId,
         UUID paymentId,
         BigDecimal amount,
@@ -17,15 +18,17 @@ record ProviderLedgerEntry(
         String outcome,
         Instant appliedAt
 ) {
-    @Realizes(spec = "refunds/provider-effects", scenario = "redelivery-after-provider-success")
+    @Realizes(spec = "refunds/execution", scenario = "repeated-processing-does-not-repeat-refund")
     boolean matches(ProviderRefundRequest request) {
-        return paymentId.equals(request.paymentId())
+        return refundId.equals(request.refundId())
+                && paymentId.equals(request.paymentId())
                 && amount.compareTo(request.amount()) == 0
                 && currency.equals(request.currency());
     }
 
     ProviderRefundResponse toResponse() {
         return new ProviderRefundResponse(
+                idempotencyKey,
                 refundId,
                 providerOperationId,
                 RefundOutcome.fromWireName(outcome),

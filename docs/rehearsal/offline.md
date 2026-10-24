@@ -24,15 +24,15 @@ then run:
 
 ```text
 scripts/rehearsal offline-check
-scripts/rehearsal reset
-scripts/rehearsal readiness
-scripts/demo-failure
-scripts/demo-correct
+scripts/demo-start-duplicate
+# perform the browser journey
+scripts/demo-stop
 ```
 
-`scripts/rehearsal run` deliberately starts with `--no-build`. If an image is absent, it fails
-instead of contacting a registry or rebuilding different source. `scripts/demo-reset` remains a
-developer convenience and is not the offline conference recovery path.
+`scripts/demo-start-duplicate` and both rehearsal journeys deliberately start with `--no-build`.
+If an image is absent, they fail instead of contacting a registry or rebuilding different source.
+`scripts/demo-reset` remains a developer convenience and is not the offline conference recovery
+path.
 
 ## Refreshing the manifest
 

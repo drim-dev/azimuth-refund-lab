@@ -12,12 +12,22 @@ const pendingRefund: RefundView = {
 };
 
 const providerLedger: ProviderLedgerView = {
-  refund: {
+  refundId: pendingRefund.refundId,
+  attempts: [{
+    idempotencyKey: pendingRefund.refundId,
+    refundId: pendingRefund.refundId,
+    paymentId: pendingRefund.paymentId,
+    amount: pendingRefund.amount,
+    currency: pendingRefund.currency,
+    attemptedAt: "2026-08-12T09:00:00Z",
+  }],
+  operations: [{
+    idempotencyKey: pendingRefund.refundId,
     refundId: pendingRefund.refundId,
     providerOperationId: "66666666-6666-6666-6666-666666666666",
     outcome: "succeeded",
     appliedAt: "2026-08-12T09:00:01Z",
-  },
+  }],
   applicationCount: 1,
 };
 

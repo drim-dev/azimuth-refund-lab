@@ -1,15 +1,18 @@
 # Conference rehearsal state
 
-The live application has two deliberate machine-controlled beats:
+The live application has two deliberate browser-controlled beats:
 
-1. `scripts/demo-failure` moves one approved refund to the boundary after provider success but
-   before result publication. It requires a pristine fixture and stops with the provider ledger at
-   one application while the rider projection is pending.
-2. `scripts/demo-correct` releases that delivery, waits for RabbitMQ redelivery and requires the
-   provider ledger to remain at one application while the rider projection converges to succeeded.
+1. `scripts/demo-start-duplicate` starts a pristine unsafe-worker/correct-provider stack and stops
+   before approving anything. The presenter opens the support console, arms the deterministic
+   pause and approves EUR 30 in the browser.
+2. After the first public provider operation is visible while the API is pending, the presenter
+   releases the delivery. RabbitMQ redelivers it; the unsafe worker supplies another key and the
+   correct provider reports a second EUR 30 operation.
 
-`scripts/rehearsal run` composes those beats after a project-scoped reset. The reset removes only
-the named Compose project's volumes and starts the exact locally available images with
+`scripts/demo-run-duplicate` composes and asserts those beats without a presenter.
+`scripts/rehearsal duplicate` calls that automated path. `scripts/rehearsal run` retains the
+correct-worker journey as the positive evidence rehearsal. Each reset removes only the named
+Compose project's volumes and starts the exact locally available images with
 `--no-build`. Building during a talk would add package registries and changing source inputs to the
 failure surface. The script never edits source, selects a teaching Git state, creates Git history,
 or reports human observations.
@@ -18,8 +21,8 @@ or reports human observations.
 
 - Machine script syntax and source-input checksums: automated by `scripts/rehearsal check`.
 - Runtime readiness: automated by `scripts/rehearsal readiness` against a pristine running stack.
-- Failure/correction journey: automated by `scripts/rehearsal run` and the independent Playwright
-  system test.
+- Correct and unsafe journeys: automated independently by `scripts/rehearsal run`,
+  `scripts/rehearsal duplicate` and their Playwright system tests.
 - Forty-five-minute human rehearsal: **pending**.
 - Projector, display scaling and room-network rehearsal: **pending**.
 - Manual-QA attestation for conference delivery: **pending**.

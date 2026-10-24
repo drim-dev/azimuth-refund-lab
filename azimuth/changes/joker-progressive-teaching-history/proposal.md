@@ -13,23 +13,24 @@ structural diagnostics, an authentic weak-oracle mutation result and preserved j
 
 ## Outcome
 
-Provide seven provenance-labelled offline teaching states, a demo-only unsafe provider mode that
-creates two durable financial effects, an authentic PIT survivor-to-killed comparison, and operator
-commands matching the speaker guide. Prepare—but do not create—immutable public Git tags.
+Provide seven provenance-labelled offline teaching states, a demo-only unsafe worker mode that
+creates two provider operations through different keys, an authentic PIT survivor-to-killed
+comparison, and operator commands matching the speaker guide. Prepare—but do not
+create—immutable public Git tags.
 
 ## Scope
 
 In scope: teaching fixtures and replay scripts, explicit judgment history, separate provider
-financial-effect truth, demo-only unsafe behavior, collateral review of the critical claim and
-future tag metadata.
+financial-effect truth, demo-only unsafe worker behavior, collateral review of the critical claim
+and future tag metadata.
 
 Out of scope: creating commits or tags, pushing Git history, publishing the article, presenting a
-constructed state as organic history, and production use of the unsafe provider mode.
+constructed state as organic history, and production use of the unsafe worker mode.
 
 ## Affected claims
 
 - Add routine claim `demo/progressive-teaching#refund-failure-and-repair-are-replayable`.
-- Collateral review: `refunds/provider-effects#redelivery-after-provider-success` because its
+- Collateral review: `refunds/execution#repeated-processing-does-not-repeat-refund` because its
   provider realization and direct oracle changed.
 
 ## Completion conditions

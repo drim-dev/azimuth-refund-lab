@@ -1,0 +1,76 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ACCOUNTS="$PROJECT_ROOT/demo/teaching/fixtures/stage-accounts.tsv"
+SELECTED_STAGE="${TMPDIR:-/tmp}/azimuth-refund-lab-teaching-stage"
+
+had_selection=0
+previous_selection=
+if [ -f "$SELECTED_STAGE" ]; then
+  had_selection=1
+  previous_selection=$(sed -n '1p' "$SELECTED_STAGE")
+fi
+restore_selection() {
+  if [ "$had_selection" -eq 1 ]; then
+    printf '%s\n' "$previous_selection" > "$SELECTED_STAGE"
+  else
+    rm -f "$SELECTED_STAGE"
+  fi
+}
+trap restore_selection EXIT HUP INT TERM
+
+while IFS='|' read -r stage model pre_review_model standards manifests challenge expected diagnostic; do
+  case "$stage" in
+    \#*|'') continue ;;
+  esac
+  printf '%s\n' "$stage" > "$SELECTED_STAGE"
+
+  check_status=0
+  check_output=$("$PROJECT_ROOT/scripts/azimuth-check" 2>&1) || check_status=$?
+  if [ "$check_status" -ne "$expected" ]; then
+    printf '%s\n' "$check_output" >&2
+    echo "$stage: Azimuth exit $check_status; expected $expected" >&2
+    exit 1
+  fi
+  if ! printf '%s\n' "$check_output" | grep -F "$diagnostic" >/dev/null; then
+    printf '%s\n' "$check_output" >&2
+    echo "$stage: missing diagnostic '$diagnostic'" >&2
+    exit 1
+  fi
+
+  gate_status=0
+  gate_output=$("$PROJECT_ROOT/scripts/teaching-acceptance-gate" 2>&1) || gate_status=$?
+  expected_gate=1
+  [ "$stage" = "final-account" ] && expected_gate=0
+  if [ "$gate_status" -ne "$expected_gate" ]; then
+    printf '%s\n' "$gate_output" >&2
+    echo "$stage: acceptance exit $gate_status; expected $expected_gate" >&2
+    exit 1
+  fi
+  echo "$stage: check=$check_status gate=$gate_status diagnostic=$diagnostic"
+
+  if [ "$pre_review_model" != "-" ]; then
+    pre_review_status=0
+    pre_review_output=$("$PROJECT_ROOT/scripts/azimuth-check" --pre-review 2>&1) || \
+      pre_review_status=$?
+    if [ "$pre_review_status" -ne 0 ] || \
+      ! printf '%s\n' "$pre_review_output" | grep -F "no holes" >/dev/null; then
+      printf '%s\n' "$pre_review_output" >&2
+      echo "$stage: pre-review graph is not structurally green" >&2
+      exit 1
+    fi
+  fi
+done < "$ACCOUNTS"
+
+printf '%s\n' dishonest-green > "$SELECTED_STAGE"
+stage_three_history=$("$PROJECT_ROOT/scripts/show-judgment-history" provider-refund-applied-once)
+if printf '%s\n' "$stage_three_history" | grep -F toothless >/dev/null; then
+  echo "stage 3 history exposes a future toothless verdict" >&2
+  exit 1
+fi
+printf '%s\n' weak-oracle > "$SELECTED_STAGE"
+"$PROJECT_ROOT/scripts/show-judgment-history" provider-refund-applied-once | \
+  grep -F toothless >/dev/null
+
+echo "all teaching stages derive their outcomes from selected account artifacts"

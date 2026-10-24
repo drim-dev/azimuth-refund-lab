@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { realizes } from "@/lib/azimuth";
 import type {
   FailpointStatus,
   ProblemDetail,
@@ -17,11 +18,11 @@ type DemoAction = "arm" | "release";
 const stages = [
   { id: "captured", label: "Payment captured", detail: "€120.00 recorded" },
   { id: "api-pending", label: "Refund reserved", detail: "Refund API: pending" },
-  { id: "provider-applied", label: "Provider applied", detail: "Ledger is authoritative" },
+  { id: "provider-applied", label: "Provider applied", detail: "Public operation recorded" },
   { id: "completed", label: "Rider updated", detail: "Final cost: €90.00" },
 ] as const;
 
-export function RefundLab() {
+export function RefundLab({ unsafeWorkerMode = false }: { unsafeWorkerMode?: boolean }) {
   const [activeView, setActiveView] = useState<ViewName>("rider");
   const [trip, setTrip] = useState<TripFinancialView | null>(null);
   const [failpoint, setFailpoint] = useState<FailpointStatus | null>(null);
@@ -147,7 +148,7 @@ export function RefundLab() {
         <p className="eyebrow">Trip payment · 12 August 2026</p>
         <h1 id="page-title">One correction, every boundary visible.</h1>
         <p>
-          Follow a €30.00 wait-time fee refund from support approval to the provider ledger and
+          Follow a €30.00 wait-time fee refund from support approval to the payment provider and
           back to the rider’s final cost.
         </p>
       </section>
@@ -194,6 +195,7 @@ export function RefundLab() {
             onApprove={approveRefund}
             onFailpoint={changeFailpoint}
             onRefresh={() => refresh()}
+            unsafeWorkerMode={unsafeWorkerMode}
           />
         )}
       </div>
@@ -208,6 +210,7 @@ interface RiderPanelProps {
 }
 
 function RiderPanel({ trip, refund, stage }: RiderPanelProps) {
+  realizes("refunds/execution", "interrupted-processing-eventually-completes");
   return (
     <section id="rider-panel" role="tabpanel" aria-labelledby="rider-tab" className="panel-grid">
       <article className="card receipt-card">
@@ -250,10 +253,12 @@ interface SupportPanelProps {
   onApprove: () => Promise<void>;
   onFailpoint: (action: DemoAction) => Promise<void>;
   onRefresh: () => Promise<void>;
+  unsafeWorkerMode: boolean;
 }
 
 function SupportPanel(props: SupportPanelProps) {
-  const { trip, refund, failpoint, providerLedger, stage, busy } = props;
+  const { trip, refund, failpoint, providerLedger, stage, busy, unsafeWorkerMode } = props;
+  const latestProviderOperation = providerLedger?.operations.at(-1);
   const canArm = failpoint?.state === "idle" && !refund;
   const canRelease = failpoint?.state === "paused";
 
@@ -292,6 +297,11 @@ function SupportPanel(props: SupportPanelProps) {
         <p className="eyebrow">Presenter controls</p>
         <h2 id="demo-heading">Delivery boundary</h2>
         <p className="muted">Pause once after provider success, before the API receives the result.</p>
+        {unsafeWorkerMode && (
+          <p className="scenario-warning" role="status">
+            Unsafe worker fixture: each delivery creates a new provider idempotency key.
+          </p>
+        )}
 
         <div className="control-status">
           <span>Worker failpoint</span>
@@ -303,14 +313,16 @@ function SupportPanel(props: SupportPanelProps) {
             disabled={!canArm || busy !== null}
             onClick={() => void props.onFailpoint("arm")}
           >
-            {busy === "arm" ? "Arming…" : "Arm pause"}
+            {busy === "arm" ? "Arming interruption…" : "Arm interruption after provider response"}
           </button>
           <button
             className="danger-action"
             disabled={!canRelease || busy !== null}
             onClick={() => void props.onFailpoint("release")}
           >
-            {busy === "release" ? "Releasing…" : "Release delivery"}
+            {busy === "release"
+              ? "Interrupting processing…"
+              : "Interrupt processing and trigger redelivery"}
           </button>
         </div>
         {failpoint?.pausedRefundId && (
@@ -321,20 +333,26 @@ function SupportPanel(props: SupportPanelProps) {
         <hr />
 
         <div className="ledger-heading">
-          <div><p className="eyebrow">Independent authority</p><h3>Provider ledger</h3></div>
+          <div><p className="eyebrow">Fixture-only reconciliation</p><h3>Provider refund history</h3></div>
           <button className="text-action" disabled={busy !== null} onClick={() => void props.onRefresh()}>
             Refresh
           </button>
         </div>
         {providerLedger ? (
           <dl className="ledger-details">
-            <div><dt>Outcome</dt><dd><StatusBadge status={providerLedger.refund.outcome} /></dd></div>
-            <div><dt>Operation</dt><dd><code>{shortId(providerLedger.refund.providerOperationId)}</code></dd></div>
-            <div><dt>Applied</dt><dd>{formatMoment(providerLedger.refund.appliedAt)}</dd></div>
+            <div><dt>Outcome</dt><dd><StatusBadge status={latestProviderOperation?.outcome ?? "unavailable"} /></dd></div>
+            <div><dt>Latest operation</dt><dd><code>{shortId(latestProviderOperation?.providerOperationId ?? "—")}</code></dd></div>
+            <div><dt>Applied</dt><dd>{latestProviderOperation ? formatMoment(latestProviderOperation.appliedAt) : "—"}</dd></div>
             <div><dt>Applications</dt><dd><b>{providerLedger.applicationCount}</b></dd></div>
+            <div className="ledger-keys">
+              <dt>Idempotency keys</dt>
+              <dd>{providerLedger.attempts.map((attempt, index) => (
+                <code key={`${attempt.idempotencyKey}-${index}`}>{shortId(attempt.idempotencyKey)}</code>
+              ))}</dd>
+            </div>
           </dl>
         ) : (
-          <div className="empty-ledger"><span aria-hidden="true">○</span><p>No provider operation recorded.</p></div>
+          <div className="empty-ledger"><span aria-hidden="true">○</span><p>No public provider transaction recorded.</p></div>
         )}
       </aside>
     </section>

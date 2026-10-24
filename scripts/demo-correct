@@ -2,7 +2,7 @@
 set -eu
 
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-LAB_URL=${REFUND_LAB_URL:-http://127.0.0.1:3000}
+LAB_URL=${REFUND_LAB_URL:-http://127.0.0.1:3100}
 POLL_SECONDS=${REFUND_LAB_POLL_SECONDS:-30}
 
 usage() {
@@ -88,7 +88,8 @@ projected_status=$(printf '%s' "$trip_json" | json_value refunds.0.status)
 
 before_ledger=$(get_json "/api/demo/provider-ledger/$paused_id")
 before_count=$(printf '%s' "$before_ledger" | json_value applicationCount)
-[ "$before_count" = "1" ] || {
+before_attempts=$(printf '%s' "$before_ledger" | json_value attempts.length)
+[ "$before_count" = "1" ] && [ "$before_attempts" = "1" ] || {
   echo "refusing release: provider application count is $before_count, expected 1" >&2
   exit 1
 }
@@ -144,13 +145,21 @@ interruption_count=$(printf '%s' "$settled_failpoint" | json_value interruptionC
 
 after_ledger=$(get_json "/api/demo/provider-ledger/$paused_id")
 after_count=$(printf '%s' "$after_ledger" | json_value applicationCount)
-[ "$after_count" = "1" ] || {
+after_attempts=$(printf '%s' "$after_ledger" | json_value attempts.length)
+after_operations=$(printf '%s' "$after_ledger" | json_value operations.length)
+first_key=$(printf '%s' "$after_ledger" | json_value attempts.0.idempotencyKey)
+second_key=$(printf '%s' "$after_ledger" | json_value attempts.1.idempotencyKey)
+[ "$after_count" = "1" ] && [ "$after_attempts" = "2" ] \
+  && [ "$after_operations" = "1" ] && [ "$first_key" = "$paused_id" ] \
+  && [ "$second_key" = "$paused_id" ] || {
   echo "financial invariant violated: provider application count is $after_count" >&2
   exit 1
 }
 
 echo "correct journey converged"
 echo "refund_id=$paused_id"
+echo "provider_attempts=2"
+echo "stable_idempotency_key=$paused_id"
 echo "provider_applications=1"
 echo "rider_projection=succeeded"
 echo "worker_interruptions=1"

@@ -3,6 +3,7 @@ set -eu
 
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 STAGES="$PROJECT_ROOT/demo/teaching/stages.tsv"
+ACCOUNTS="$PROJECT_ROOT/demo/teaching/fixtures/stage-accounts.tsv"
 cd "$PROJECT_ROOT"
 
 usage() {
@@ -59,7 +60,9 @@ replay_stage() {
   }
   echo "Replaying $1 ($kind; no checkout)"
   printf '%s\n' "$1" > "${TMPDIR:-/tmp}/azimuth-refund-lab-teaching-stage"
-  "$PROJECT_ROOT/scripts/azimuth-check" --fixture "$1"
+  check_status=0
+  "$PROJECT_ROOT/scripts/azimuth-check" --fixture "$1" || check_status=$?
+  echo "Raw Azimuth exit: $check_status"
 
   case "$1" in
     dishonest-green|weak-oracle|stale-judgment)
@@ -73,7 +76,7 @@ replay_stage() {
       "$PROJECT_ROOT/scripts/pit-replay" --teaching-strong
       judgment=$("$PROJECT_ROOT/.cache/azimuth-tools/bin/azimuth" judge \
         --manifest "$PROJECT_ROOT/.azimuth/linkage.json" \
-        --manifest "$PROJECT_ROOT/tooling/pit/provider-refund-observation.json")
+        --manifest "$PROJECT_ROOT/tooling/pit/worker-idempotency-observation.json")
       printf '%s\n' "$judgment" | awk 'substr($0, 1, 1) != "\t" { print }'
       if ! printf '%s\n' "$judgment" | grep -F "judged sound" >/dev/null; then
         echo "the authentic final judgment is no longer current and sound" >&2
@@ -81,6 +84,7 @@ replay_stage() {
       fi
       ;;
   esac
+  return "$check_status"
 }
 
 select_stage() {
@@ -90,6 +94,9 @@ select_stage() {
   }
   printf '%s\n' "$1" > "${TMPDIR:-/tmp}/azimuth-refund-lab-teaching-stage"
   echo "Selected teaching stage: $1"
+  model=$(awk -F '|' -v wanted="$1" '$1 == wanted { print $2 }' "$ACCOUNTS")
+  echo "Selected offline account model: $model"
+  echo "The current azimuth/model tree remains the authentic final account."
   echo "The immutable tag is not required for offline replay; the next cue reads this selection."
 }
 
@@ -120,7 +127,7 @@ if [ "$#" -eq 1 ]; then
     demo-04-weak-oracle) select_stage weak-oracle; exit ;;
     demo-05-surviving-mutant) select_stage surviving-mutant; exit ;;
     demo-06-stale-judgment) select_stage stale-judgment; exit ;;
-    demo-07-provider-ledger) select_stage final-account; exit ;;
+    demo-07-provider-idempotency) select_stage final-account; exit ;;
   esac
 fi
 

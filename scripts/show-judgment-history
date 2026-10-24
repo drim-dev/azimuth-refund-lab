@@ -4,50 +4,42 @@ set -eu
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 STAGES="$PROJECT_ROOT/demo/teaching/stages.tsv"
 HISTORY="$PROJECT_ROOT/demo/teaching/accounts/judgment-history.tsv"
+SELECTED_STAGE="${TMPDIR:-/tmp}/azimuth-refund-lab-teaching-stage"
 cd "$PROJECT_ROOT"
 
 if [ "$#" -gt 1 ]; then
-  echo "usage: scripts/show-judgment-history [claim]" >&2
+  echo "usage: scripts/show-judgment-history [historical-claim-or-lineage]" >&2
   exit 2
 fi
 
 claim=${1:-provider-refund-applied-once}
-echo "Judgment history: $claim"
-awk -F '|' -v wanted="$claim" '
+if [ -f "$SELECTED_STAGE" ]; then
+  selected=$(sed -n '1p' "$SELECTED_STAGE")
+else
+  selected=final-account
+fi
+
+echo "Judgment history visible at stage: $selected"
+echo "Requested historical identity or lineage: $claim"
+awk -F '|' -v wanted="$claim" -v selected="$selected" '
+  FNR == NR {
+    if ($0 !~ /^#/ && NF == 6) order[$1] = ++last
+    next
+  }
   /^#/ { next }
-  $2 == wanted {
-    printf "%s. %-16s [%-26s] %s\n", $1, $3, $4, $5
+  ($3 == wanted || $4 == wanted) && order[$2] <= order[selected] {
+    printf "%s. %-16s [%-26s; %-20s] claim: %s\n", $1, $5, $6, $7, $4
+    print "   " $8
     found = 1
   }
   END { if (!found) exit 1 }
-' "$HISTORY" || {
-  echo "unknown teaching claim: $claim" >&2
+' "$STAGES" "$HISTORY" || {
+  echo "unknown teaching claim or no judgment visible at this stage: $claim" >&2
   exit 2
 }
 
 echo
-echo "The earlier verdict is preserved; the corrections do not rewrite it."
-echo
-printf '%-20s %-21s %-21s %-18s %s\n' \
-  "STAGE" "PROVENANCE" "MACHINE" "AGENT" "IMMUTABLE TAG"
-awk -F '|' '
-  /^#/ { next }
-  NF == 6 {
-    printf "%-20s %-21s %-21s %-18s %s\n", $1, $3, $4, $5, $2
-  }
-' "$STAGES"
-
-echo
-echo "Declared tags are prerequisites, not claims about repository history."
-missing=0
-total=0
-while IFS='|' read -r stage tag kind machine agent description; do
-  case "$stage" in
-    \#*|'') continue ;;
-  esac
-  total=$((total + 1))
-  if ! git -C "$PROJECT_ROOT" rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
-    missing=$((missing + 1))
-  fi
-done < "$STAGES"
-echo "$missing of $total immutable teaching tags are not yet materialized."
+echo "Constructed corrections preserve the false positive; they do not rewrite it."
+if [ "$selected" = "final-account" ]; then
+  echo "The final row names the current production claim and authentic current-account provenance."
+fi

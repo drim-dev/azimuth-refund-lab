@@ -1,5 +1,7 @@
 services:
-  provider:
+  refund-worker:
     environment:
-      SPRING_PROFILES_ACTIVE: demo
-      PROVIDER_DEMO_REAPPLY_IDENTICAL_REQUESTS: "true"
+      PROVIDER_DEMO_NEW_KEY_PER_DELIVERY: "true"
+  web:
+    environment:
+      REFUND_DEMO_UNSAFE_WORKER: "true"

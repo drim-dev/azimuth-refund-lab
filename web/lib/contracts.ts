@@ -45,19 +45,24 @@ export interface FailpointStatus {
 }
 
 export interface ProviderRefundView {
+  idempotencyKey: string;
   refundId: string;
   providerOperationId: string;
   outcome: "succeeded";
   appliedAt: string;
 }
 
-export interface ProviderApplicationCount {
-  refundId: string;
-  count: number;
-}
-
 export interface ProviderLedgerView {
-  refund: ProviderRefundView;
+  refundId: string;
+  attempts: Array<{
+    idempotencyKey: string;
+    refundId: string;
+    paymentId: string;
+    amount: number;
+    currency: string;
+    attemptedAt: string;
+  }>;
+  operations: ProviderRefundView[];
   applicationCount: number;
 }
 

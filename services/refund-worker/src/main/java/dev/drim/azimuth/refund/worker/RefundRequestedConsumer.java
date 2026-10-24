@@ -1,7 +1,6 @@
 package dev.drim.azimuth.refund.worker;
 
 import com.rabbitmq.client.Channel;
-import dev.drim.azimuth.Azimuth.Realizes;
 import dev.drim.azimuth.refund.contracts.event.RefundEventNames;
 import dev.drim.azimuth.refund.contracts.event.RefundMessaging;
 import dev.drim.azimuth.refund.contracts.event.RefundRequestedV1;
@@ -16,6 +15,8 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
+
+import static dev.drim.azimuth.Azimuth.Realizes;
 
 @Component
 class RefundRequestedConsumer {
@@ -39,7 +40,7 @@ class RefundRequestedConsumer {
     }
 
     @RabbitListener(queues = RefundMessaging.WORKER_QUEUE, ackMode = "MANUAL")
-    @Realizes(spec = "refunds/provider-effects", scenario = "redelivery-after-provider-success")
+    @Realizes(spec = "refunds/execution", scenario = "interrupted-processing-eventually-completes")
     public void consume(Message message, Channel channel) throws IOException {
         long deliveryTag = message.getMessageProperties().getDeliveryTag();
         try {

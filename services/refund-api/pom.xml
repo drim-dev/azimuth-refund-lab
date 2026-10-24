@@ -16,6 +16,11 @@
   <dependencies>
     <dependency>
       <groupId>dev.drim.azimuth</groupId>
+      <artifactId>azimuth-annotations</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>dev.drim.azimuth</groupId>
       <artifactId>refund-contracts</artifactId>
       <version>${project.version}</version>
     </dependency>

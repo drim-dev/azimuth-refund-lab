@@ -16,6 +16,7 @@ import org.springframework.stereotype.Repository;
 class ProviderRefundLedger {
     private static final String INSERT_IF_ABSENT = """
             INSERT INTO provider_refund_ledger (
+                idempotency_key,
                 refund_id,
                 payment_id,
                 amount,
@@ -24,6 +25,7 @@ class ProviderRefundLedger {
                 outcome,
                 applied_at
             ) VALUES (
+                :idempotencyKey,
                 :refundId,
                 :paymentId,
                 :amount,
@@ -32,11 +34,26 @@ class ProviderRefundLedger {
                 :outcome,
                 :appliedAt
             )
-            ON CONFLICT (refund_id) DO NOTHING
+            ON CONFLICT (idempotency_key) DO NOTHING
+            """;
+
+    private static final String FIND_BY_IDEMPOTENCY_KEY = """
+            SELECT
+                idempotency_key,
+                refund_id,
+                payment_id,
+                amount,
+                currency,
+                provider_operation_id,
+                outcome,
+                applied_at
+            FROM provider_refund_ledger
+            WHERE idempotency_key = :idempotencyKey
             """;
 
     private static final String FIND_BY_REFUND_ID = """
             SELECT
+                idempotency_key,
                 refund_id,
                 payment_id,
                 amount,
@@ -46,6 +63,7 @@ class ProviderRefundLedger {
                 applied_at
             FROM provider_refund_ledger
             WHERE refund_id = :refundId
+            ORDER BY applied_at, idempotency_key
             """;
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -54,9 +72,10 @@ class ProviderRefundLedger {
         this.jdbc = jdbc;
     }
 
-    @Realizes(spec = "refunds/provider-effects", scenario = "redelivery-after-provider-success")
+    @Realizes(spec = "refunds/execution", scenario = "repeated-processing-does-not-repeat-refund")
     int insertIfAbsent(ProviderLedgerEntry entry) {
         return jdbc.update(INSERT_IF_ABSENT, Map.of(
+                "idempotencyKey", entry.idempotencyKey(),
                 "refundId", entry.refundId(),
                 "paymentId", entry.paymentId(),
                 "amount", entry.amount(),
@@ -66,22 +85,30 @@ class ProviderRefundLedger {
                 "appliedAt", Timestamp.from(entry.appliedAt())));
     }
 
-    ProviderLedgerEntry findRequired(UUID refundId) {
-        return find(refundId).orElseThrow();
+    ProviderLedgerEntry findRequired(String idempotencyKey) {
+        return find(idempotencyKey).orElseThrow();
     }
 
-    Optional<ProviderLedgerEntry> find(UUID refundId) {
+    Optional<ProviderLedgerEntry> find(String idempotencyKey) {
         return jdbc.query(
-                FIND_BY_REFUND_ID,
-                Map.of("refundId", refundId),
+                FIND_BY_IDEMPOTENCY_KEY,
+                Map.of("idempotencyKey", idempotencyKey),
                 ProviderRefundLedger::mapEntry)
                 .stream()
                 .findFirst();
     }
 
+    java.util.List<ProviderLedgerEntry> findByRefundId(UUID refundId) {
+        return jdbc.query(
+                FIND_BY_REFUND_ID,
+                Map.of("refundId", refundId),
+                ProviderRefundLedger::mapEntry);
+    }
+
     private static ProviderLedgerEntry mapEntry(ResultSet resultSet, int rowNumber)
             throws SQLException {
         return new ProviderLedgerEntry(
+                resultSet.getString("idempotency_key"),
                 resultSet.getObject("refund_id", UUID.class),
                 resultSet.getObject("payment_id", UUID.class),
                 resultSet.getBigDecimal("amount"),

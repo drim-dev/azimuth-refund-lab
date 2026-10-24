@@ -1,16 +1,20 @@
 package dev.drim.azimuth.refund.provider;
 
-import static dev.drim.azimuth.refund.contracts.http.RefundHttpPaths.PROVIDER_REFUND_BY_ID;
+import static dev.drim.azimuth.refund.contracts.http.RefundHttpPaths.PROVIDER_REFUNDS;
+import static dev.drim.azimuth.refund.contracts.http.RefundHttpPaths.PROVIDER_REFUND_BY_KEY;
+import static dev.drim.azimuth.refund.contracts.http.RefundHttpPaths.PROVIDER_REFUND_SUMMARY;
 
 import dev.drim.azimuth.refund.contracts.http.ProviderRefundRequest;
 import dev.drim.azimuth.refund.contracts.http.ProviderRefundResponse;
+import dev.drim.azimuth.refund.contracts.http.ProviderRefundSummary;
 import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -21,31 +25,24 @@ final class ProviderRefundController {
         this.providerRefundService = providerRefundService;
     }
 
-    @PutMapping(
-            path = PROVIDER_REFUND_BY_ID,
+    @PostMapping(
+            path = PROVIDER_REFUNDS,
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<ProviderRefundResponse> applyRefund(
-            @PathVariable UUID refundId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @RequestBody ProviderRefundRequest request
     ) {
-        return ResponseEntity.ok(providerRefundService.apply(refundId, request));
+        return ResponseEntity.ok(providerRefundService.apply(idempotencyKey, request));
     }
 
-    @GetMapping(
-            path = PROVIDER_REFUND_BY_ID,
-            produces = MediaType.APPLICATION_JSON_VALUE)
-    ProviderRefundResponse getRefund(@PathVariable UUID refundId) {
-        return providerRefundService.get(refundId);
+    @GetMapping(path = PROVIDER_REFUND_BY_KEY, produces = MediaType.APPLICATION_JSON_VALUE)
+    ProviderRefundResponse getRefund(@PathVariable String idempotencyKey) {
+        return providerRefundService.get(idempotencyKey);
     }
 
-    @GetMapping(
-            path = PROVIDER_REFUND_BY_ID + "/applications",
-            produces = MediaType.APPLICATION_JSON_VALUE)
-    ProviderRefundApplicationCount getApplicationCount(@PathVariable UUID refundId) {
-        return providerRefundService.countApplications(refundId);
+    @GetMapping(path = PROVIDER_REFUND_SUMMARY, produces = MediaType.APPLICATION_JSON_VALUE)
+    ProviderRefundSummary summarizeRefund(@PathVariable UUID refundId) {
+        return providerRefundService.summarize(refundId);
     }
-}
-
-record ProviderRefundApplicationCount(UUID refundId, int count) {
 }

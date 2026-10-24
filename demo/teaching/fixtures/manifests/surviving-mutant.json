@@ -1,0 +1,80 @@
+{
+  "realizes": [
+    {
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
+      "site": "dev.drim.azimuth.teaching.WorkerProviderAdapter.keyFor",
+      "file": "demo/teaching/pit-survivor/src/main/java/dev/drim/azimuth/teaching/WorkerProviderAdapter.java",
+      "lang": "java",
+      "source_fingerprint": "0ca18e29ed5da796d979a25659ad4d95221895c849f96a99b8b24ce0a51c5c38"
+    }
+  ],
+  "covers": [
+    {
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
+      "site": "dev.drim.azimuth.teaching.RefundRedeliveryComposedTest.refundRedeliveryReturnsSucceededStatus",
+      "file": "demo/teaching/pit-survivor/src/test/java/dev/drim/azimuth/teaching/RefundRedeliveryComposedTest.java",
+      "lang": "java",
+      "source_fingerprint": "d026774409ce1a747236114a707a61474909acaf1f4dec32edb6b6e149d34b25",
+      "scope": "component",
+      "quantification": "universal",
+      "oracle": "relational"
+    }
+  ],
+  "mechanism_implementations": [],
+  "mechanism_covers": [],
+  "class_members": [],
+  "enumerations": [],
+  "artifacts": [],
+  "observations": [
+    {
+      "id": "pit-teaching-weak-20260813",
+      "kind": "mutation-test",
+      "tool": "PIT",
+      "tool_version": "1.22.0",
+      "report": "demo/teaching/pit-survivor/report/weak/mutations.xml",
+      "inputs": [
+        "demo/teaching/pit-survivor/pom.xml",
+        "demo/teaching/pit-survivor/report/provenance.json"
+      ],
+      "source_fingerprint": "f0bcc8b8d0ba854e3c8cd2ea2d04b6d2d23da6be25297ddc72198f5f69a1c7d5",
+      "bindings": [
+        {
+          "role": "challenge",
+          "spec": "refunds/execution",
+          "scenario": "repeated-processing-does-not-repeat-refund",
+          "assertion": "the linked evidence rejects a generated unstable-key implementation",
+          "outcome": "findings",
+          "subjects": [
+            {
+              "relation": "realization",
+              "identity": "demo/teaching/pit-survivor/src/main/java/dev/drim/azimuth/teaching/WorkerProviderAdapter.java#dev.drim.azimuth.teaching.WorkerProviderAdapter.keyFor|java"
+            },
+            {
+              "relation": "evidence",
+              "identity": "demo/teaching/pit-survivor/src/test/java/dev/drim/azimuth/teaching/RefundRedeliveryComposedTest.java#dev.drim.azimuth.teaching.RefundRedeliveryComposedTest.refundRedeliveryReturnsSucceededStatus|java"
+            }
+          ]
+        }
+      ],
+      "payload": {
+        "schema": "azimuth-pit-summary/1",
+        "report_partial": true,
+        "report_sha256": "f0bcc8b8d0ba854e3c8cd2ea2d04b6d2d23da6be25297ddc72198f5f69a1c7d5",
+        "assessments": [
+          {
+            "spec": "refunds/execution",
+            "scenario": "repeated-processing-does-not-repeat-refund",
+            "killed": 0,
+            "survived": 1,
+            "no_coverage": 0,
+            "timed_out": 0,
+            "runtime_error": 0,
+            "pending": 0
+          }
+        ]
+      }
+    }
+  ]
+}

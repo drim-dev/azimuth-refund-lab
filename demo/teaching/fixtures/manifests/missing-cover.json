@@ -1,8 +1,8 @@
 {
   "realizes": [
     {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
       "site": "demo.teaching.RefundService.apply",
       "file": "demo/teaching/fixtures/source/RefundService.java",
       "lang": "java",

@@ -1,0 +1,85 @@
+{
+  "realizes": [],
+  "covers": [],
+  "mechanism_implementations": [],
+  "mechanism_covers": [],
+  "class_members": [],
+  "enumerations": [],
+  "artifacts": [],
+  "observations": [
+    {
+      "id": "pit-2137b1921450cd8b",
+      "kind": "mutation-test",
+      "tool": "PIT",
+      "tool_version": "1.22.0",
+      "report": "services/refund-worker/target/pit-reports/mutations.xml",
+      "inputs": [
+        "services/refund-worker/pom.xml",
+        "tooling/pit/pit-selection.json"
+      ],
+      "source_fingerprint": "d75f542c6355399670c624b97a81763bb29d77eadff0570dc36722960e8eaa3d",
+      "bindings": [
+        {
+          "role": "challenge",
+          "spec": "refunds/execution",
+          "scenario": "repeated-processing-does-not-repeat-refund",
+          "assertion": "selected evidence rejects generated changes at linked realization sites",
+          "outcome": "clean",
+          "subjects": [
+            {
+              "relation": "realization",
+              "identity": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeys.java#dev.drim.azimuth.refund.worker.ProviderIdempotencyKeys.forRefund|java"
+            },
+            {
+              "relation": "evidence",
+              "identity": "services/refund-worker/src/test/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeysTest.java#dev.drim.azimuth.refund.worker.ProviderIdempotencyKeysTest.everyGeneratedRefundKeepsItsBusinessIdentityAcrossRepeatedProviderCalls|java"
+            }
+          ]
+        }
+      ],
+      "payload": {
+        "schema": "azimuth-pit-summary/1",
+        "report_partial": true,
+        "assessments": [
+          {
+            "spec": "refunds/execution",
+            "scenario": "repeated-processing-does-not-repeat-refund",
+            "target_files": [
+              "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeys.java"
+            ],
+            "target_classes": [
+              "dev.drim.azimuth.refund.worker.ProviderIdempotencyKeys"
+            ],
+            "test_sites": [
+              "dev.drim.azimuth.refund.worker.ProviderIdempotencyKeysTest.everyGeneratedRefundKeepsItsBusinessIdentityAcrossRepeatedProviderCalls"
+            ],
+            "killed": 1,
+            "survived": 0,
+            "no_coverage": 0,
+            "timed_out": 0,
+            "non_viable": 0,
+            "runtime_error": 0,
+            "pending": 0,
+            "equivalent": 0,
+            "mutants": [
+              {
+                "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeys.java",
+                "line": 19,
+                "status": "KILLED",
+                "detected": true,
+                "mutated_class": "dev.drim.azimuth.refund.worker.ProviderIdempotencyKeys",
+                "mutated_method": "forRefund",
+                "method_description": "(Ljava/util/UUID;)Ljava/lang/String;",
+                "mutator": "org.pitest.mutationtest.engine.gregor.mutators.NegateConditionalsMutator",
+                "description": "negated conditional",
+                "tests_run": 1,
+                "killing_test": "dev.drim.azimuth.refund.worker.ProviderIdempotencyKeysTest.[engine:junit-jupiter]/[class:dev.drim.azimuth.refund.worker.ProviderIdempotencyKeysTest]/[method:everyGeneratedRefundKeepsItsBusinessIdentityAcrossRepeatedProviderCalls()]"
+              }
+            ],
+            "review_items": []
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,6 +1,5 @@
 package dev.drim.azimuth.refund.worker;
 
-import dev.drim.azimuth.Azimuth.ImplementsMechanism;
 import dev.drim.azimuth.Azimuth.Realizes;
 import dev.drim.azimuth.refund.contracts.event.RefundRequestedV1;
 import dev.drim.azimuth.refund.contracts.http.ProviderRefundRequest;
@@ -21,32 +20,39 @@ class ProviderClient {
     private final Duration requestTimeout;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final ProviderIdempotencyKeys idempotencyKeys;
 
     ProviderClient(
             @Value("${refund.provider.base-url}") URI providerBaseUri,
             @Value("${refund.provider.request-timeout}") Duration requestTimeout,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ProviderIdempotencyKeys idempotencyKeys
     ) {
         this.providerBaseUri = providerBaseUri;
         this.requestTimeout = requestTimeout;
         this.objectMapper = objectMapper;
+        this.idempotencyKeys = idempotencyKeys;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(requestTimeout)
                 .build();
     }
 
-    @Realizes(spec = "refunds/provider-effects", scenario = "redelivery-after-provider-success")
-    @ImplementsMechanism(spec = "refunds/provider-effects", mechanism = "stable-refund-identity")
+    @Realizes(spec = "refunds/execution", scenario = "repeated-processing-does-not-repeat-refund")
     ProviderRefundResponse apply(RefundRequestedV1 requested) {
         ProviderRefundRequest providerRequest = new ProviderRefundRequest(
-                requested.paymentId(), requested.amount(), requested.currency());
-        URI target = providerBaseUri.resolve("/provider/v1/refunds/" + requested.refundId());
+                requested.refundId(),
+                requested.paymentId(),
+                requested.amount(),
+                requested.currency());
+        String idempotencyKey = idempotencyKeys.forRefund(requested.refundId());
+        URI target = providerBaseUri.resolve("/provider/v1/refunds");
 
         try {
             HttpRequest request = HttpRequest.newBuilder(target)
                     .timeout(requestTimeout)
                     .header("Content-Type", "application/json")
-                    .PUT(HttpRequest.BodyPublishers.ofByteArray(
+                    .header("Idempotency-Key", idempotencyKey)
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(
                             objectMapper.writeValueAsBytes(providerRequest)))
                     .build();
             HttpResponse<byte[]> response = httpClient.send(

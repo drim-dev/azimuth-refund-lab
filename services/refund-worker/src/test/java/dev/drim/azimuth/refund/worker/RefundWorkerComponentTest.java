@@ -59,7 +59,7 @@ class RefundWorkerComponentTest {
     private static final Instant APPLIED_AT = Instant.parse("2026-08-12T09:00:01Z");
     private static final HttpClient HTTP = HttpClient.newHttpClient();
     private static final AtomicInteger PROVIDER_CALLS = new AtomicInteger();
-    private static final List<ProviderRefundRequest> PROVIDER_REQUESTS = new CopyOnWriteArrayList<>();
+    private static final List<ProviderAttempt> PROVIDER_ATTEMPTS = new CopyOnWriteArrayList<>();
     private static final ObjectMapper PROVIDER_JSON = new ObjectMapper();
     private static final HttpServer PROVIDER = startProvider();
 
@@ -92,7 +92,7 @@ class RefundWorkerComponentTest {
             return null;
         });
         PROVIDER_CALLS.set(0);
-        PROVIDER_REQUESTS.clear();
+        PROVIDER_ATTEMPTS.clear();
     }
 
     @AfterAll
@@ -102,14 +102,14 @@ class RefundWorkerComponentTest {
 
     @Test
     @Covers(
-            spec = "refunds/provider-effects",
-            scenario = "redelivery-after-provider-success",
+            spec = "refunds/execution",
+            scenario = "repeated-processing-does-not-repeat-refund",
             scope = Scope.component,
             quantification = Quantification.universal,
             oracle = Oracle.relational)
     @CoversMechanism(
-            spec = "refunds/provider-effects",
-            mechanism = "stable-refund-identity",
+            spec = "refunds/execution",
+            mechanism = "stable-provider-idempotency-key",
             scope = Scope.component,
             quantification = Quantification.universal,
             oracle = Oracle.relational)
@@ -149,9 +149,11 @@ class RefundWorkerComponentTest {
         assertThat(resultMessage.getMessageProperties().getReceivedDeliveryMode())
                 .isEqualTo(MessageDeliveryMode.PERSISTENT);
         await(Duration.ofSeconds(5), () -> PROVIDER_CALLS.get() == 2);
-        assertThat(PROVIDER_REQUESTS).containsExactly(
-                new ProviderRefundRequest(PAYMENT_ID, new BigDecimal("30.00"), "EUR"),
-                new ProviderRefundRequest(PAYMENT_ID, new BigDecimal("30.00"), "EUR"));
+        ProviderRefundRequest expectedRequest = new ProviderRefundRequest(
+                REFUND_ID, PAYMENT_ID, new BigDecimal("30.00"), "EUR");
+        assertThat(PROVIDER_ATTEMPTS).containsExactly(
+                new ProviderAttempt("POST", REFUND_ID.toString(), expectedRequest),
+                new ProviderAttempt("POST", REFUND_ID.toString(), expectedRequest));
         assertThat(failpointStatus()).contains("\"interruptionCount\":1");
         assertThat(receiveResult(Duration.ofMillis(300))).isNull();
     }
@@ -211,7 +213,7 @@ class RefundWorkerComponentTest {
     private static HttpServer startProvider() {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-            server.createContext("/provider/v1/refunds/" + REFUND_ID, RefundWorkerComponentTest::handleRefund);
+            server.createContext("/provider/v1/refunds", RefundWorkerComponentTest::handleRefund);
             server.start();
             return server;
         } catch (IOException exception) {
@@ -221,14 +223,28 @@ class RefundWorkerComponentTest {
 
     private static void handleRefund(HttpExchange exchange) throws IOException {
         PROVIDER_CALLS.incrementAndGet();
-        PROVIDER_REQUESTS.add(PROVIDER_JSON.readValue(
-                exchange.getRequestBody(), ProviderRefundRequest.class));
+        String idempotencyKey = exchange.getRequestHeaders().getFirst("Idempotency-Key");
+        ProviderRefundRequest request = PROVIDER_JSON.readValue(
+                exchange.getRequestBody(), ProviderRefundRequest.class);
+        PROVIDER_ATTEMPTS.add(new ProviderAttempt(
+                exchange.getRequestMethod(), idempotencyKey, request));
         ProviderRefundResponse response = new ProviderRefundResponse(
-                REFUND_ID, PROVIDER_OPERATION_ID, RefundOutcome.SUCCEEDED, APPLIED_AT);
+                idempotencyKey,
+                REFUND_ID,
+                PROVIDER_OPERATION_ID,
+                RefundOutcome.SUCCEEDED,
+                APPLIED_AT);
         byte[] body = PROVIDER_JSON.writeValueAsBytes(response);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
         exchange.sendResponseHeaders(200, body.length);
         exchange.getResponseBody().write(body);
         exchange.close();
+    }
+
+    private record ProviderAttempt(
+            String method,
+            String idempotencyKey,
+            ProviderRefundRequest request
+    ) {
     }
 }

@@ -8,8 +8,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 final class ProviderRefundConflictException extends RuntimeException {
-    ProviderRefundConflictException(UUID refundId) {
-        super("RefundId %s was already used with different financial fields".formatted(refundId));
+    ProviderRefundConflictException(String idempotencyKey) {
+        super("Idempotency-Key %s was already used with different request fields"
+                .formatted(idempotencyKey));
     }
 }
 
@@ -20,8 +21,8 @@ final class InvalidProviderRefundException extends RuntimeException {
 }
 
 final class ProviderRefundNotFoundException extends RuntimeException {
-    ProviderRefundNotFoundException(UUID refundId) {
-        super("Provider refund %s was not found".formatted(refundId));
+    ProviderRefundNotFoundException(String idempotencyKey) {
+        super("Provider refund for idempotency key %s was not found".formatted(idempotencyKey));
     }
 }
 

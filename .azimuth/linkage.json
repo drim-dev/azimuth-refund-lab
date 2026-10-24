@@ -1,109 +1,138 @@
 {
   "realizes": [
     {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
-      "site": "dev.drim.azimuth.refund.provider.ProviderLedgerEntry.matches",
-      "file": "services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderLedgerEntry.java",
+      "spec": "refunds/execution",
+      "scenario": "interrupted-processing-eventually-completes",
+      "site": "dev.drim.azimuth.refund.api.messaging.RefundResultProcessor.process",
+      "file": "services/refund-api/src/main/java/dev/drim/azimuth/refund/api/messaging/RefundResultProcessor.java",
       "lang": "java",
-      "source_fingerprint": "194198743defbb512cd2c2bea153379d7b303cee2432e95a73e5f310407d8e77"
+      "source_fingerprint": "7eaec58186be0f6fb63c3c3843e961eb54344069eda48eb557a27358cc593c0b"
     },
     {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
-      "site": "dev.drim.azimuth.refund.provider.ProviderRefundLedger.insertIfAbsent",
-      "file": "services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderRefundLedger.java",
-      "lang": "java",
-      "source_fingerprint": "c5d5fd33e8c61df1d2a04c192ccde82dbba41e1209c8e9b850ad0217e48cedeb"
-    },
-    {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
-      "site": "dev.drim.azimuth.refund.provider.ProviderRefundService.apply",
-      "file": "services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderRefundService.java",
-      "lang": "java",
-      "source_fingerprint": "e0d6f102b6a4e8e11367b3f3246832a19e63c17f544ade5c85e3810d036da16a"
-    },
-    {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
-      "site": "dev.drim.azimuth.refund.worker.ProviderClient.apply",
-      "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderClient.java",
-      "lang": "java",
-      "source_fingerprint": "021489ea9ed1c6edd8ee222e3e9e41e28d1f38acba51dd111f36040e201c1a85"
-    },
-    {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
+      "spec": "refunds/execution",
+      "scenario": "interrupted-processing-eventually-completes",
       "site": "dev.drim.azimuth.refund.worker.RefundRequestedConsumer.consume",
       "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/RefundRequestedConsumer.java",
       "lang": "java",
-      "source_fingerprint": "c62718e258535da7dde18425ec173cc86bfe2ab45f02d9f1287bde651648fb42"
+      "source_fingerprint": "8a07acbf9f9d1ca162f75d469454c7eb6dce0a281a968c4cb1b6070094a56e81"
+    },
+    {
+      "spec": "refunds/execution",
+      "scenario": "interrupted-processing-eventually-completes",
+      "site": "dev.drim.azimuth.refund.worker.RefundResultPublisher.publishConfirmed",
+      "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/RefundResultPublisher.java",
+      "lang": "java",
+      "source_fingerprint": "4762ac0a93debb2bfe380e5f7809dbe46ba60fcb8daba48ee2f2995fb98b4c58"
+    },
+    {
+      "spec": "refunds/execution",
+      "scenario": "interrupted-processing-eventually-completes",
+      "site": "GET",
+      "file": "web/app/api/trip/route.ts",
+      "lang": "typescript",
+      "source_fingerprint": "c9023e779ebd3bd2abe795eeedd97add8d329af9341f57aff9b9fc1afc0dad57"
+    },
+    {
+      "spec": "refunds/execution",
+      "scenario": "interrupted-processing-eventually-completes",
+      "site": "RiderPanel",
+      "file": "web/components/refund-lab.tsx",
+      "lang": "typescript",
+      "source_fingerprint": "33cbb140ec9156b57124a35af677617ab3bee919c0d98969d638ea78c869bcc2"
+    },
+    {
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
+      "site": "dev.drim.azimuth.refund.provider.ProviderLedgerEntry.matches",
+      "file": "services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderLedgerEntry.java",
+      "lang": "java",
+      "source_fingerprint": "68a6653a8d1245ec1c00476dd46126c47a30ec4a5ec03659aa6cbbcb0a45d600"
+    },
+    {
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
+      "site": "dev.drim.azimuth.refund.provider.ProviderRefundLedger.insertIfAbsent",
+      "file": "services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderRefundLedger.java",
+      "lang": "java",
+      "source_fingerprint": "646f08693953c78c11da138f93c0c910bf8a353f287d1a0c11c0b59475162875"
+    },
+    {
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
+      "site": "dev.drim.azimuth.refund.provider.ProviderRefundService.apply",
+      "file": "services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderRefundService.java",
+      "lang": "java",
+      "source_fingerprint": "53d8108fe4106478db3f461623c8fe1a49a8860254c70c06c6ecbabe0775a541"
+    },
+    {
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
+      "site": "dev.drim.azimuth.refund.worker.ProviderClient.apply",
+      "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderClient.java",
+      "lang": "java",
+      "source_fingerprint": "50f82a681177c14f00c51862e6f65c7a7b6944f1e9fa4ad395a33ad4bd4f5733"
+    },
+    {
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
+      "site": "dev.drim.azimuth.refund.worker.ProviderIdempotencyKeys.forRefund",
+      "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeys.java",
+      "lang": "java",
+      "source_fingerprint": "154d051c4036df507cd8b5209b0aa30fc781448b6f3920ecc3182707b65b9675"
     }
   ],
   "covers": [
     {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
+      "spec": "refunds/execution",
+      "scenario": "interrupted-processing-eventually-completes",
       "site": "a worker interruption redelivers one refund without repeating its financial effect",
       "file": "tests/system/refund-redelivery.spec.ts",
       "lang": "typescript",
-      "source_fingerprint": "e980ec5656d80b5b998b24517e2ed6040ea73fd747c8090ece3b58ccbda2ea84",
+      "source_fingerprint": "57621aef320ef0a38504b57d34e70ff5b5b2ddf050a7fe1af7fdf4132275ba04",
       "scope": "e2e",
       "quantification": "example",
       "oracle": "relational"
     },
     {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
-      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.changedFinancialFieldIsAConflict",
-      "file": "services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java",
+      "spec": "refunds/execution",
+      "scenario": "interrupted-processing-eventually-completes",
+      "site": "dev.drim.azimuth.refund.api.RefundApiComponentTest.resultRedeliveryAdvancesTheProjectionOnce",
+      "file": "services/refund-api/src/test/java/dev/drim/azimuth/refund/api/RefundApiComponentTest.java",
       "lang": "java",
-      "source_fingerprint": "fd3e9d88344a2673bb53f6fd41e4121fe004a364b8e6e89f088372b16f2530d1",
+      "source_fingerprint": "0ec43564d5d3c74a59061c7c9d58b04a535c203bc1bac899d4de003db6f50f04",
       "scope": "component",
+      "quantification": "example",
+      "oracle": "relational"
+    },
+    {
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
+      "site": "a worker interruption redelivers one refund without repeating its financial effect",
+      "file": "tests/system/refund-redelivery.spec.ts",
+      "lang": "typescript",
+      "source_fingerprint": "57621aef320ef0a38504b57d34e70ff5b5b2ddf050a7fe1af7fdf4132275ba04",
+      "scope": "e2e",
+      "quantification": "example",
+      "oracle": "relational"
+    },
+    {
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
+      "site": "dev.drim.azimuth.refund.worker.ProviderIdempotencyKeysTest.everyGeneratedRefundKeepsItsBusinessIdentityAcrossRepeatedProviderCalls",
+      "file": "services/refund-worker/src/test/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeysTest.java",
+      "lang": "java",
+      "source_fingerprint": "faabdc25d16f6ec546aff6abc4e15763407c6b9ae9e534c090487629ce5fb2c1",
+      "scope": "unit",
       "quantification": "universal",
       "oracle": "relational"
     },
     {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
-      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.competingPayloadsSettleOnOneRefundIdentity",
-      "file": "services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java",
-      "lang": "java",
-      "source_fingerprint": "fd3e9d88344a2673bb53f6fd41e4121fe004a364b8e6e89f088372b16f2530d1",
-      "scope": "component",
-      "quantification": "universal",
-      "oracle": "relational"
-    },
-    {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
-      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.concurrentIdenticalRepeatsReturnOneStoredOperation",
-      "file": "services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java",
-      "lang": "java",
-      "source_fingerprint": "fd3e9d88344a2673bb53f6fd41e4121fe004a364b8e6e89f088372b16f2530d1",
-      "scope": "component",
-      "quantification": "universal",
-      "oracle": "relational"
-    },
-    {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
-      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.identicalRepeatReturnsTheStoredResponseAndOneLedgerOperation",
-      "file": "services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java",
-      "lang": "java",
-      "source_fingerprint": "fd3e9d88344a2673bb53f6fd41e4121fe004a364b8e6e89f088372b16f2530d1",
-      "scope": "component",
-      "quantification": "universal",
-      "oracle": "relational"
-    },
-    {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
       "site": "dev.drim.azimuth.refund.worker.RefundWorkerComponentTest.releasedDeliveryIsRedeliveredAndEmitsOneStableResult",
       "file": "services/refund-worker/src/test/java/dev/drim/azimuth/refund/worker/RefundWorkerComponentTest.java",
       "lang": "java",
-      "source_fingerprint": "3b7b0f94ef984a073b29efce4fae431674c5814c792e0c25bcaef44c4495b94a",
+      "source_fingerprint": "d661eef75b61c4c002d1b2c4410d4bd2205e683c5c7b709dd938ba2cd984e263",
       "scope": "component",
       "quantification": "universal",
       "oracle": "relational"
@@ -111,74 +140,90 @@
   ],
   "mechanism_implementations": [
     {
-      "spec": "refunds/provider-effects",
-      "mechanism": "provider-refund-ledger",
+      "spec": "refunds/execution",
+      "mechanism": "confirmed-refund-result",
+      "binding": "jvm-symbol:dev.drim.azimuth.refund.worker.RefundResultPublisher.publishConfirmed",
+      "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/RefundResultPublisher.java",
+      "lang": "java",
+      "source_fingerprint": "4762ac0a93debb2bfe380e5f7809dbe46ba60fcb8daba48ee2f2995fb98b4c58"
+    },
+    {
+      "spec": "refunds/execution",
+      "mechanism": "idempotent-result-projection",
+      "binding": "jvm-symbol:dev.drim.azimuth.refund.api.messaging.RefundResultProcessor.process",
+      "file": "services/refund-api/src/main/java/dev/drim/azimuth/refund/api/messaging/RefundResultProcessor.java",
+      "lang": "java",
+      "source_fingerprint": "7eaec58186be0f6fb63c3c3843e961eb54344069eda48eb557a27358cc593c0b"
+    },
+    {
+      "spec": "refunds/execution",
+      "mechanism": "provider-idempotency-contract",
       "binding": "jvm-symbol:dev.drim.azimuth.refund.provider.ProviderRefundService.apply",
       "file": "services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderRefundService.java",
       "lang": "java",
-      "source_fingerprint": "e0d6f102b6a4e8e11367b3f3246832a19e63c17f544ade5c85e3810d036da16a"
+      "source_fingerprint": "53d8108fe4106478db3f461623c8fe1a49a8860254c70c06c6ecbabe0775a541"
     },
     {
-      "spec": "refunds/provider-effects",
-      "mechanism": "stable-refund-identity",
-      "binding": "jvm-symbol:dev.drim.azimuth.refund.worker.ProviderClient.apply",
-      "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderClient.java",
+      "spec": "refunds/execution",
+      "mechanism": "stable-provider-idempotency-key",
+      "binding": "jvm-symbol:dev.drim.azimuth.refund.worker.ProviderIdempotencyKeys.forRefund",
+      "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeys.java",
       "lang": "java",
-      "source_fingerprint": "021489ea9ed1c6edd8ee222e3e9e41e28d1f38acba51dd111f36040e201c1a85"
+      "source_fingerprint": "154d051c4036df507cd8b5209b0aa30fc781448b6f3920ecc3182707b65b9675"
     }
   ],
   "mechanism_covers": [
     {
-      "spec": "refunds/provider-effects",
-      "mechanism": "provider-refund-ledger",
-      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.changedFinancialFieldIsAConflict",
+      "spec": "refunds/execution",
+      "mechanism": "provider-idempotency-contract",
+      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.changedPayloadUnderTheSameKeyIsAConflict",
       "file": "services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java",
       "lang": "java",
-      "source_fingerprint": "fd3e9d88344a2673bb53f6fd41e4121fe004a364b8e6e89f088372b16f2530d1",
+      "source_fingerprint": "102968e4a9e082b4454dfc8d3990200e0a360472fff38426e5cdc169edd2aa1a",
       "scope": "component",
       "quantification": "universal",
       "oracle": "relational"
     },
     {
-      "spec": "refunds/provider-effects",
-      "mechanism": "provider-refund-ledger",
-      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.competingPayloadsSettleOnOneRefundIdentity",
+      "spec": "refunds/execution",
+      "mechanism": "provider-idempotency-contract",
+      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.concurrentIdenticalRequestsSettleOnOneProviderOperation",
       "file": "services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java",
       "lang": "java",
-      "source_fingerprint": "fd3e9d88344a2673bb53f6fd41e4121fe004a364b8e6e89f088372b16f2530d1",
+      "source_fingerprint": "102968e4a9e082b4454dfc8d3990200e0a360472fff38426e5cdc169edd2aa1a",
       "scope": "component",
       "quantification": "universal",
       "oracle": "relational"
     },
     {
-      "spec": "refunds/provider-effects",
-      "mechanism": "provider-refund-ledger",
-      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.concurrentIdenticalRepeatsReturnOneStoredOperation",
+      "spec": "refunds/execution",
+      "mechanism": "provider-idempotency-contract",
+      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.identicalKeyAndPayloadReturnOneStoredProviderOperation",
       "file": "services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java",
       "lang": "java",
-      "source_fingerprint": "fd3e9d88344a2673bb53f6fd41e4121fe004a364b8e6e89f088372b16f2530d1",
+      "source_fingerprint": "102968e4a9e082b4454dfc8d3990200e0a360472fff38426e5cdc169edd2aa1a",
       "scope": "component",
       "quantification": "universal",
       "oracle": "relational"
     },
     {
-      "spec": "refunds/provider-effects",
-      "mechanism": "provider-refund-ledger",
-      "site": "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest.identicalRepeatReturnsTheStoredResponseAndOneLedgerOperation",
-      "file": "services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java",
+      "spec": "refunds/execution",
+      "mechanism": "stable-provider-idempotency-key",
+      "site": "dev.drim.azimuth.refund.worker.ProviderIdempotencyKeysTest.everyGeneratedRefundKeepsItsBusinessIdentityAcrossRepeatedProviderCalls",
+      "file": "services/refund-worker/src/test/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeysTest.java",
       "lang": "java",
-      "source_fingerprint": "fd3e9d88344a2673bb53f6fd41e4121fe004a364b8e6e89f088372b16f2530d1",
-      "scope": "component",
+      "source_fingerprint": "faabdc25d16f6ec546aff6abc4e15763407c6b9ae9e534c090487629ce5fb2c1",
+      "scope": "unit",
       "quantification": "universal",
       "oracle": "relational"
     },
     {
-      "spec": "refunds/provider-effects",
-      "mechanism": "stable-refund-identity",
+      "spec": "refunds/execution",
+      "mechanism": "stable-provider-idempotency-key",
       "site": "dev.drim.azimuth.refund.worker.RefundWorkerComponentTest.releasedDeliveryIsRedeliveredAndEmitsOneStableResult",
       "file": "services/refund-worker/src/test/java/dev/drim/azimuth/refund/worker/RefundWorkerComponentTest.java",
       "lang": "java",
-      "source_fingerprint": "3b7b0f94ef984a073b29efce4fae431674c5814c792e0c25bcaef44c4495b94a",
+      "source_fingerprint": "d661eef75b61c4c002d1b2c4410d4bd2205e683c5c7b709dd938ba2cd984e263",
       "scope": "component",
       "quantification": "universal",
       "oracle": "relational"
@@ -188,14 +233,24 @@
   "enumerations": [],
   "artifacts": [
     {
+      "id": "jvm-symbol:dev.drim.azimuth.refund.api.messaging.RefundResultProcessor.process",
+      "kind": "jvm-symbol",
+      "file": "services/refund-api/src/main/java/dev/drim/azimuth/refund/api/messaging/RefundResultProcessor.java"
+    },
+    {
       "id": "jvm-symbol:dev.drim.azimuth.refund.provider.ProviderRefundService.apply",
       "kind": "jvm-symbol",
       "file": "services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderRefundService.java"
     },
     {
-      "id": "jvm-symbol:dev.drim.azimuth.refund.worker.ProviderClient.apply",
+      "id": "jvm-symbol:dev.drim.azimuth.refund.worker.ProviderIdempotencyKeys.forRefund",
       "kind": "jvm-symbol",
-      "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderClient.java"
+      "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeys.java"
+    },
+    {
+      "id": "jvm-symbol:dev.drim.azimuth.refund.worker.RefundResultPublisher.publishConfirmed",
+      "kind": "jvm-symbol",
+      "file": "services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/RefundResultPublisher.java"
     }
   ]
 }

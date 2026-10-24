@@ -16,7 +16,3 @@ management:
     web:
       exposure:
         include: health
-
-provider:
-  demo:
-    reapply-identical-requests: ${PROVIDER_DEMO_REAPPLY_IDENTICAL_REQUESTS:false}

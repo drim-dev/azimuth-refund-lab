@@ -26,11 +26,25 @@ interface FailpointStatus {
 }
 
 interface ProviderLedgerView {
-  refund: {
+  refundId: string;
+  attempts: ProviderAttempt[];
+  operations: Array<{
+    idempotencyKey: string;
     refundId: string;
+    providerOperationId: string;
     outcome: "succeeded";
-  };
+    appliedAt: string;
+  }>;
   applicationCount: number;
+}
+
+interface ProviderAttempt {
+  idempotencyKey: string;
+  refundId: string;
+  paymentId: string;
+  amount: number;
+  currency: string;
+  attemptedAt: string;
 }
 
 const POLL_INTERVAL_MS = 200;
@@ -40,9 +54,18 @@ test("a worker interruption redelivers one refund without repeating its financia
   page,
   request,
 }) => {
+  test.skip(process.env.REFUND_LAB_SCENARIO === "duplicate");
+
   covers(
-    "refunds/provider-effects",
-    "redelivery-after-provider-success",
+    "refunds/execution",
+    "repeated-processing-does-not-repeat-refund",
+    "e2e",
+    "example",
+    "relational",
+  );
+  covers(
+    "refunds/execution",
+    "interrupted-processing-eventually-completes",
     "e2e",
     "example",
     "relational",
@@ -53,7 +76,7 @@ test("a worker interruption redelivers one refund without repeating its financia
   await expect(page.getByText("Captured payment").locator("..")).toContainText("€120.00");
 
   await page.getByRole("tab", { name: "Support console" }).click();
-  await page.getByRole("button", { name: "Arm pause" }).click();
+  await page.getByRole("button", { name: "Arm interruption after provider response" }).click();
   await expect(page.getByText("Worker failpoint").locator("..")).toContainText("armed");
 
   await page.getByRole("button", { name: "Approve €30.00 refund" }).click();
@@ -76,17 +99,22 @@ test("a worker interruption redelivers one refund without repeating its financia
     `/api/demo/provider-ledger/${pendingRefund.refundId}`,
     (ledger) => ledger.applicationCount === 1,
   );
-  expect(ledgerWhileApiIsPending.refund).toMatchObject({
+  expect(ledgerWhileApiIsPending.refundId).toBe(pendingRefund.refundId);
+  expect(ledgerWhileApiIsPending.operations).toHaveLength(1);
+  expect(ledgerWhileApiIsPending.operations[0]).toMatchObject({
+    idempotencyKey: pendingRefund.refundId,
     refundId: pendingRefund.refundId,
     outcome: "succeeded",
   });
+  expect(ledgerWhileApiIsPending.attempts).toHaveLength(1);
+  expectProviderAttempt(ledgerWhileApiIsPending.attempts[0], pendingRefund.refundId);
   expect(pendingTrip.finalCost).toEqual({ amount: 90, currency: "EUR" });
 
   await page.getByRole("button", { name: "Refresh" }).click();
   await expect(page.getByText("Applications").locator("..")).toContainText("1");
   await expect(page.getByText("Worker failpoint").locator("..")).toContainText("paused");
 
-  await page.getByRole("button", { name: "Release delivery" }).click();
+  await page.getByRole("button", { name: "Interrupt processing and trigger redelivery" }).click();
 
   const completedTrip = await pollJson<TripFinancialView>(
     request,
@@ -103,10 +131,20 @@ test("a worker interruption redelivers one refund without repeating its financia
   expect(completedTrip.capturedAmount).toEqual({ amount: 120, currency: "EUR" });
   expect(completedTrip.finalCost).toEqual({ amount: 90, currency: "EUR" });
 
-  const finalLedger = await getJson<ProviderLedgerView>(
+  const finalLedger = await pollJson<ProviderLedgerView>(
     request,
     `/api/demo/provider-ledger/${pendingRefund.refundId}`,
+    (ledger) => ledger.attempts.length === 2,
   );
+  expect(finalLedger.attempts).toHaveLength(2);
+  expectProviderAttempt(finalLedger.attempts[0], pendingRefund.refundId);
+  expectProviderAttempt(finalLedger.attempts[1], pendingRefund.refundId);
+  expect(finalLedger.attempts.map((attempt) => attempt.idempotencyKey)).toEqual([
+    pendingRefund.refundId,
+    pendingRefund.refundId,
+  ]);
+  expect(finalLedger.operations).toHaveLength(1);
+  expect(finalLedger.operations[0].idempotencyKey).toBe(pendingRefund.refundId);
   expect(finalLedger.applicationCount).toBe(1);
 
   const interrupted = await pollJson<FailpointStatus>(
@@ -129,6 +167,16 @@ test("a worker interruption redelivers one refund without repeating its financia
 function expectSingleRefund(trip: TripFinancialView): RefundView {
   expect(trip.refunds).toHaveLength(1);
   return trip.refunds[0];
+}
+
+function expectProviderAttempt(attempt: ProviderAttempt, refundId: string): void {
+  expect(attempt).toMatchObject({
+    idempotencyKey: refundId,
+    refundId,
+    paymentId: "33333333-3333-3333-3333-333333333333",
+    amount: 30,
+    currency: "EUR",
+  });
 }
 
 async function pollJson<T>(
@@ -155,10 +203,4 @@ async function pollJson<T>(
   throw new Error(
     `Timed out polling ${path}; last status=${latestStatus}, last body=${JSON.stringify(latest)}`,
   );
-}
-
-async function getJson<T>(request: APIRequestContext, path: string): Promise<T> {
-  const response = await request.get(path);
-  expect(response.ok(), await response.text()).toBe(true);
-  return (await response.json()) as T;
 }

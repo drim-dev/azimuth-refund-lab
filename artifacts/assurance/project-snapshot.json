@@ -1,45 +1,108 @@
 {
   "format": "azimuth-assurance-project-snapshot",
   "version": 1,
-  "id": "cd7da23b0344f39733fb55e74fe0498fb64cb370384a50dafd742624ef07dbf4",
+  "id": "2f109391e68c1859aef987225851570d6531e8de6527dcf2a9d482c6cec0b611",
   "project": "azimuth-refund-lab",
-  "modelFingerprint": "1be091bf2d77c478ef108cc61a7a36aba3b000ab3a3fb579d99ac89118123035",
+  "modelFingerprint": "de3f04d01d9c5d83379e72c1450673998fc4001eaffc6621efdcaf9d10767820",
   "claims": [
     {
-      "contractFingerprint": "7f3653045d5810a1d6a0f0b99f1986026708784fa9e352bb917490bc66fea156",
-      "spec": "refunds/provider-effects",
-      "claim": "redelivery-after-provider-success",
-      "requirement": "approved-refund-applied-once",
+      "contractFingerprint": "7178a12baaa85f8ddf50f6d55cef99c3334c0460b652108ef6b6ce1b0f650174",
+      "spec": "refunds/execution",
+      "claim": "interrupted-processing-eventually-completes",
+      "requirement": "interrupted-refund-completes",
       "criticality": "critical",
-      "statement": "One approved refund SHALL cause at most one successful durable provider-ledger application even when delivery is repeated.",
+      "statement": "An approved refund SHALL resume after an interruption and eventually appear as completed to the rider.",
       "steps": [
         {
           "kind": "given",
-          "text": "a refund was approved with one stable RefundId"
+          "text": "a refund was approved for a rider"
         },
         {
           "kind": "and",
-          "text": "the provider has durably applied it"
+          "text": "the approved amount was returned"
         },
         {
           "kind": "when",
-          "text": "the worker is interrupted before publishing the result"
+          "text": "processing is interrupted before completion is visible"
         },
         {
           "kind": "and",
-          "text": "RabbitMQ redelivers the request any number of times"
+          "text": "processing resumes"
         },
         {
           "kind": "then",
-          "text": "every provider request uses that same RefundId, payment, amount and currency"
+          "text": "the rider eventually sees one completed refund for the approved amount"
+        }
+      ],
+      "domain": "behaviour",
+      "verification": {
+        "strength": "demonstration",
+        "scope": "e2e",
+        "quantification": "example",
+        "oracle": "relational",
+        "residualRequired": true,
+        "residual": "the composed journey samples the financially dangerous interruption after payment success rather than every infrastructure failure or recovery duration",
+        "residualAcceptance": "component evidence isolates confirmed result publication and idempotent projection; add another composed equivalence class when a materially different interruption can prevent completion"
+      },
+      "surface": null,
+      "obligatedAreas": [
+        {
+          "id": "refund-api",
+          "mounts": [
+            {
+              "id": "code",
+              "path": "services/refund-api/src/main/java"
+            }
+          ]
         },
         {
-          "kind": "and",
-          "text": "the provider ledger contains exactly one successful application for the approved amount"
+          "id": "refund-worker",
+          "mounts": [
+            {
+              "id": "code",
+              "path": "services/refund-worker/src/main/java"
+            }
+          ]
         },
         {
-          "kind": "and",
-          "text": "the rider eventually sees one succeeded refund"
+          "id": "rider-bff",
+          "mounts": [
+            {
+              "id": "routes",
+              "path": "web/app/api"
+            }
+          ]
+        },
+        {
+          "id": "rider-web",
+          "mounts": [
+            {
+              "id": "components",
+              "path": "web/components"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "contractFingerprint": "eec4ec3bc67478b89e5f825900ea0c34c8a123abd75e79d8e67e6e3d82a1fc5d",
+      "spec": "refunds/execution",
+      "claim": "repeated-processing-does-not-repeat-refund",
+      "requirement": "approved-refund-applied-once",
+      "criticality": "critical",
+      "statement": "One approved refund SHALL return the approved amount no more than once, even when its processing is repeated.",
+      "steps": [
+        {
+          "kind": "given",
+          "text": "one refund was approved for a rider"
+        },
+        {
+          "kind": "when",
+          "text": "its processing is interrupted and repeated any number of times"
+        },
+        {
+          "kind": "then",
+          "text": "the rider receives the approved amount no more than once"
         }
       ],
       "domain": "behaviour",
@@ -53,7 +116,26 @@
         "residualAcceptance": null
       },
       "surface": null,
-      "obligatedAreas": []
+      "obligatedAreas": [
+        {
+          "id": "payment-provider",
+          "mounts": [
+            {
+              "id": "code",
+              "path": "services/provider-simulator/src/main/java"
+            }
+          ]
+        },
+        {
+          "id": "refund-worker",
+          "mounts": [
+            {
+              "id": "code",
+              "path": "services/refund-worker/src/main/java"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

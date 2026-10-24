@@ -74,17 +74,28 @@ describe("Refund BFF routes", () => {
     );
   });
 
-  it("combines the provider operation and application count", async () => {
-    fetchMock
-      .mockResolvedValueOnce(
-        Response.json({
+  it("passes through the provider's fixture-only public refund history", async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
+        refundId: refund.refundId,
+        attempts: [{
+          idempotencyKey: refund.refundId,
+          refundId: refund.refundId,
+          paymentId: refund.paymentId,
+          amount: refund.amount,
+          currency: refund.currency,
+          attemptedAt: "2026-08-12T09:00:00Z",
+        }],
+        operations: [{
+          idempotencyKey: refund.refundId,
           refundId: refund.refundId,
           providerOperationId: "66666666-6666-6666-6666-666666666666",
           outcome: "succeeded",
           appliedAt: "2026-08-12T09:00:01Z",
-        }),
-      )
-      .mockResolvedValueOnce(Response.json({ refundId: refund.refundId, count: 1 }));
+        }],
+        applicationCount: 1,
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await getProviderLedger(
@@ -94,10 +105,14 @@ describe("Refund BFF routes", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      refund: { outcome: "succeeded" },
+      operations: [{ outcome: "succeeded" }],
       applicationCount: 1,
     });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `http://localhost:8082/provider/v1/business-refunds/${refund.refundId}`,
+      expect.objectContaining({ cache: "no-store" }),
+    );
   });
 
   it("preserves an upstream problem status", async () => {

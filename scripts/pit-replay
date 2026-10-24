@@ -2,7 +2,7 @@
 set -eu
 
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-OBSERVATION="$PROJECT_ROOT/tooling/pit/provider-refund-observation.json"
+OBSERVATION="$PROJECT_ROOT/tooling/pit/worker-idempotency-observation.json"
 TEACHING="$PROJECT_ROOT/demo/teaching/pit-survivor"
 SELECTED_STAGE="${TMPDIR:-/tmp}/azimuth-refund-lab-teaching-stage"
 cd "$PROJECT_ROOT"
@@ -24,9 +24,9 @@ const mode = process.argv[3];
 const provenance = JSON.parse(fs.readFileSync(path.join(root, "report/provenance.json"), "utf8"));
 const hashes = {
   "pom.xml": "pom.xml",
-  "RefundEffect.java": "src/main/java/dev/drim/azimuth/teaching/RefundEffect.java",
-  "WeakResponseOracleTest.java": "src/test/java/dev/drim/azimuth/teaching/WeakResponseOracleTest.java",
-  "StrongLedgerOracleTest.java": "src/test/java/dev/drim/azimuth/teaching/StrongLedgerOracleTest.java",
+  "WorkerProviderAdapter.java": "src/main/java/dev/drim/azimuth/teaching/WorkerProviderAdapter.java",
+  "PaymentProvider.java": "src/main/java/dev/drim/azimuth/teaching/PaymentProvider.java",
+  "RefundRedeliveryComposedTest.java": "src/test/java/dev/drim/azimuth/teaching/RefundRedeliveryComposedTest.java",
 };
 const sha256 = file => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 for (const [name, relative] of Object.entries(hashes)) {
@@ -55,7 +55,7 @@ for (const reportName of reports) {
   console.log(`${reportName} oracle`);
   console.log(`  mutant: ${text("description")} at ${text("mutatedClass")}.${text("mutatedMethod")}:${text("lineNumber")}`);
   console.log(`  status: ${attr("status")} (1 test run)`);
-  console.log(`  oracle: ${reportName === "weak" ? "duplicate responses are equal" : "one financial effect after two deliveries"}`);
+  console.log(`  oracle: ${reportName === "weak" ? "two statuses are succeeded" : "two attempts use one key and produce one effect"}`);
 }
 NODE
 }
@@ -70,14 +70,14 @@ if (!observation || !assessment) throw new Error("the compact PIT observation ha
 if (observation.kind !== "mutation-test" || observation.tool !== "PIT") {
   throw new Error("the observation is not a PIT mutation-test result");
 }
-if (assessment.timed_out !== 11 || assessment.killed !== 0 || assessment.survived !== 0) {
-  throw new Error("the application observation no longer has the expected 11/0/0 account");
+if (assessment.timed_out !== 0 || assessment.killed !== 1 || assessment.survived !== 0) {
+  throw new Error("the application observation no longer has the expected 1/0/0 account");
 }
 console.log("application experiment (separate from the teaching mutant)");
 console.log(`  observation: ${observation.id}`);
 console.log(`  outcome: ${observation.bindings?.[0]?.outcome}`);
 console.log(`  killed: ${assessment.killed}; survived: ${assessment.survived}; timed out: ${assessment.timed_out}`);
-console.log("  interpretation: adverse and inconclusive harness result");
+console.log("  interpretation: the linked test killed the selected stable-key branch mutation");
 NODE
 }
 
@@ -119,15 +119,7 @@ case "$1" in
   --application) summarize_application ;;
   --application-gate)
     summarize_application
-    set +e
     node "$PROJECT_ROOT/tooling/pit/require-clean.mjs" "$OBSERVATION"
-    actual=$?
-    set -e
-    if [ "$actual" -ne 2 ]; then
-      echo "the application review gate returned $actual; expected 2" >&2
-      exit 1
-    fi
-    echo "Observed the expected application review-gate rejection."
     ;;
   *) usage ;;
 esac

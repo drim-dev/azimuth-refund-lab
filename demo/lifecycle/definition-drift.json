@@ -1,18 +1,18 @@
 {
   "id": "refund-redelivery-component",
   "claim": {
-    "spec": "refunds/provider-effects",
-    "claim": "redelivery-after-provider-success",
-    "contractFingerprint": "7f3653045d5810a1d6a0f0b99f1986026708784fa9e352bb917490bc66fea156"
+    "spec": "refunds/execution",
+    "claim": "repeated-processing-does-not-repeat-refund",
+    "contractFingerprint": "eec4ec3bc67478b89e5f825900ea0c34c8a123abd75e79d8e67e6e3d82a1fc5d"
   },
-  "assertion": "Repeated and concurrently competing deliveries leave one matching durable provider-ledger application.",
+  "assertion": "Repeated and concurrently competing deliveries send one stable provider idempotency key and produce one matching public provider refund operation.",
   "scope": "component",
   "quantification": "universal",
   "oracle": "relational",
   "stage": "merge",
   "inputs": [
-    "services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java",
-    "services/refund-worker/src/test/java/dev/drim/azimuth/refund/worker/RefundWorkerComponentTest.java"
+    "services/refund-worker/src/test/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeysTest.java",
+    "tests/system/refund-redelivery.spec.ts"
   ],
   "requiredContext": {
     "database": "postgresql",

@@ -11,6 +11,7 @@ class ProviderFinancialEffects {
     private static final String INSERT = """
             INSERT INTO provider_financial_effects (
                 effect_id,
+                idempotency_key,
                 refund_id,
                 payment_id,
                 amount,
@@ -18,6 +19,7 @@ class ProviderFinancialEffects {
                 applied_at
             ) VALUES (
                 :effectId,
+                :idempotencyKey,
                 :refundId,
                 :paymentId,
                 :amount,
@@ -41,6 +43,7 @@ class ProviderFinancialEffects {
     void record(ProviderFinancialEffect effect) {
         jdbc.update(INSERT, Map.of(
                 "effectId", effect.effectId(),
+                "idempotencyKey", effect.idempotencyKey(),
                 "refundId", effect.refundId(),
                 "paymentId", effect.paymentId(),
                 "amount", effect.amount(),

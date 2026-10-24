@@ -1,7 +1,49 @@
 {
   "format": "azimuth-workspace",
   "version": 1,
-  "areas": [],
+  "areas": [
+    {
+      "id": "refund-worker",
+      "mounts": [
+        { "id": "code", "path": "services/refund-worker/src/main/java" }
+      ]
+    },
+    {
+      "id": "payment-provider",
+      "mounts": [
+        { "id": "code", "path": "services/provider-simulator/src/main/java" }
+      ]
+    },
+    {
+      "id": "refund-api",
+      "mounts": [
+        { "id": "code", "path": "services/refund-api/src/main/java" }
+      ]
+    },
+    {
+      "id": "rider-bff",
+      "mounts": [
+        { "id": "routes", "path": "web/app/api" }
+      ]
+    },
+    {
+      "id": "rider-web",
+      "mounts": [
+        { "id": "components", "path": "web/components" }
+      ]
+    }
+  ],
   "surfaces": [],
-  "realization_obligations": []
+  "realization_obligations": [
+    {
+      "spec": "refunds/execution",
+      "claim": "repeated-processing-does-not-repeat-refund",
+      "areas": ["refund-worker", "payment-provider"]
+    },
+    {
+      "spec": "refunds/execution",
+      "claim": "interrupted-processing-eventually-completes",
+      "areas": ["refund-worker", "refund-api", "rider-bff", "rider-web"]
+    }
+  ]
 }

@@ -4,12 +4,11 @@ set -eu
 TOOL_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$TOOL_DIR/../.." && pwd)
 LINKAGE=${1:-"$REPO_ROOT/.azimuth/linkage.json"}
-PROVIDER="$REPO_ROOT/services/provider-simulator"
-REPORT="$PROVIDER/target/pit-reports/mutations.xml"
+WORKER="$REPO_ROOT/services/refund-worker"
 SELECTION="$TOOL_DIR/pit-selection.json"
 PIT_VERSION=1.22.0
 
 node "$TOOL_DIR/derive-selection.mjs" "$LINKAGE" "$SELECTION"
-"$REPO_ROOT/mvnw" -B -f "$PROVIDER/pom.xml" test-compile org.pitest:pitest-maven:$PIT_VERSION:mutationCoverage
+"$REPO_ROOT/mvnw" -B -f "$WORKER/pom.xml" test-compile org.pitest:pitest-maven:$PIT_VERSION:mutationCoverage
 
 "$TOOL_DIR/import" "$LINKAGE"

@@ -7,7 +7,7 @@ snapshot_file="$repository_root/artifacts/assurance/project-snapshot.json"
 expected_trace="$lifecycle_dir/expected-trace.json"
 project_id="azimuth-refund-lab"
 snapshot_id="$(jq -er '.id' "$snapshot_file")"
-contract_fingerprint="$(jq -er '.claims[] | select(.spec == "refunds/provider-effects" and .claim == "redelivery-after-provider-success") | .contractFingerprint' "$snapshot_file")"
+contract_fingerprint="$(jq -er '.claims[] | select(.spec == "refunds/execution" and .claim == "repeated-processing-does-not-repeat-refund") | .contractFingerprint' "$snapshot_file")"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -25,10 +25,10 @@ validate_recorded_trace() {
       .executionEvidence == false and
       .projectSnapshot == $snapshot and
       .claimContract == $contract and
-      ([.events[].status] == ["open", "closed", "closed", "open", "closed", "closed", "open", "closed", "closed", "open", "closed"]) and
+      ([.events[].status] == ["open", "closed", "closed", "open", "open", "closed", "open", "closed", "closed", "open", "closed"]) and
       (.events[1].reasons == ["observation-expired"]) and
       (.events[2].reasons == ["assertion-violated"]) and
-      (.events[4].reasons == ["challenge-findings"]) and
+      (.events[4].reasons == []) and
       (.events[5].reasons == ["qualification-stale"]) and
       (.events[6].status == "open") and
       (.events[7].reasons == ["subject-mismatch"]) and
@@ -117,7 +117,7 @@ run_live() {
 
   qualification_payload="$(jq -cn \
     --arg fingerprint "$definition_fingerprint" \
-    '{id:"qualification-refund-redelivery-v1",definitionId:"refund-redelivery-component",definitionFingerprint:$fingerprint,verdict:"qualified",qualifiedAt:1786582710,rationale:"The component boundary, universal quantification, relational provider-ledger oracle, and PostgreSQL execution context match the claim contract."}')"
+    '{id:"qualification-refund-redelivery-v1",definitionId:"refund-redelivery-component",definitionFingerprint:$fingerprint,verdict:"qualified",qualifiedAt:1786582710,rationale:"The component boundary, universal quantification, stable-key relation, public provider-operation oracle, and PostgreSQL execution context match the claim contract."}')"
   post_value "/v1/projects/$project_id/qualifications" "$qualification_payload" >/dev/null
 
   merge_subject="$(jq -cn \
@@ -152,9 +152,9 @@ run_live() {
 
   challenge="$(jq -cn \
     --arg fingerprint "$definition_fingerprint" \
-    '{id:"pit-cf4c9dae4714e07d",source:"pit",definitionId:"refund-redelivery-component",definitionFingerprint:$fingerprint,observedAt:1786583600,outcome:"findings",report:"tooling/pit/provider-refund-observation.json"}')"
+    '{id:"pit-2137b1921450cd8b",source:"pit",definitionId:"refund-redelivery-component",definitionFingerprint:$fingerprint,observedAt:1786583600,outcome:"clean",report:"tooling/pit/worker-idempotency-observation.json"}')"
   post_value "/v1/projects/$project_id/challenges" "$challenge" >/dev/null
-  record_gate 'PIT challenge reports findings' 'refund-redelivery-component' merge "$merge_subject" 1786583600 closed challenge-findings judge-challenge
+  record_gate 'focused PIT challenge is clean' 'refund-redelivery-component' merge "$merge_subject" 1786583600 open '' ''
 
   post_json "/v1/projects/$project_id/definitions" "$lifecycle_dir/definition-drift.json" >/dev/null
   record_gate 'definition semantics drift' 'refund-redelivery-component' merge "$merge_subject" 1786583700 closed qualification-stale qualify-definition
@@ -163,7 +163,7 @@ run_live() {
   canary_fingerprint="$(printf '%s' "$canary_response" | jq -er '.definitionFingerprint')"
   canary_qualification="$(jq -cn \
     --arg fingerprint "$canary_fingerprint" \
-    '{id:"qualification-refund-canary-v1",definitionId:"refund-redelivery-canary",definitionFingerprint:$fingerprint,verdict:"qualified",qualifiedAt:1786583760,rationale:"The detector relates the exact canary cohort projection to the provider ledger for a bounded ten-minute window."}')"
+    '{id:"qualification-refund-canary-v1",definitionId:"refund-redelivery-canary",definitionFingerprint:$fingerprint,verdict:"qualified",qualifiedAt:1786583760,rationale:"The detector relates the exact canary cohort projection to the provider reconciliation interface for a bounded ten-minute window."}')"
   post_value "/v1/projects/$project_id/qualifications" "$canary_qualification" >/dev/null
 
   production_subject="$(jq -cn \
@@ -174,7 +174,7 @@ run_live() {
     --arg fingerprint "$canary_fingerprint" \
     --argjson subject "$production_subject" \
     --argjson context "$canary_context" \
-    '{id:"canary-refund-ledger-satisfied-v1",definitionId:"refund-redelivery-canary",definitionFingerprint:$fingerprint,stage:"canary",subject:$subject,context:$context,observedAt:1786583800,expiresAt:1786584400,outcome:"satisfied",report:"reports/canary-refund-ledger-satisfied-v1.json"}')"
+    '{id:"canary-refund-reconciliation-satisfied-v1",definitionId:"refund-redelivery-canary",definitionFingerprint:$fingerprint,stage:"canary",subject:$subject,context:$context,observedAt:1786583800,expiresAt:1786584400,outcome:"satisfied",report:"reports/canary-refund-reconciliation-satisfied-v1.json"}')"
   post_value "/v1/projects/$project_id/observations" "$canary_observation" >/dev/null
   record_gate 'exact bounded canary is healthy' 'refund-redelivery-canary' canary "$production_subject" 1786583800 open '' ''
   altered_production_subject="$(jq -cn \
@@ -187,7 +187,7 @@ run_live() {
   reconciliation_fingerprint="$(printf '%s' "$reconciliation_response" | jq -er '.definitionFingerprint')"
   reconciliation_qualification="$(jq -cn \
     --arg fingerprint "$reconciliation_fingerprint" \
-    '{id:"qualification-provider-reconciliation-v1",definitionId:"provider-ledger-reconciliation",definitionFingerprint:$fingerprint,verdict:"qualified",qualifiedAt:1786584560,rationale:"The detector directly relates succeeded refunds to authoritative provider-ledger row count, amount, and currency."}')"
+    '{id:"qualification-provider-reconciliation-v1",definitionId:"provider-refund-reconciliation",definitionFingerprint:$fingerprint,verdict:"qualified",qualifiedAt:1786584560,rationale:"The detector directly relates succeeded refunds to the provider reconciliation transaction count, amount, and currency."}')"
   post_value "/v1/projects/$project_id/qualifications" "$reconciliation_qualification" >/dev/null
 
   reconciliation_context='{"reconciliation-window":"15m","provider-environment":"simulated-production"}'
@@ -195,17 +195,17 @@ run_live() {
     --arg fingerprint "$reconciliation_fingerprint" \
     --argjson subject "$production_subject" \
     --argjson context "$reconciliation_context" \
-    '{id:"provider-reconciliation-satisfied-v1",definitionId:"provider-ledger-reconciliation",definitionFingerprint:$fingerprint,stage:"operation",subject:$subject,context:$context,observedAt:1786584600,expiresAt:1786585500,outcome:"satisfied",report:"reports/provider-reconciliation-satisfied-v1.json"}')"
+    '{id:"provider-reconciliation-satisfied-v1",definitionId:"provider-refund-reconciliation",definitionFingerprint:$fingerprint,stage:"operation",subject:$subject,context:$context,observedAt:1786584600,expiresAt:1786585500,outcome:"satisfied",report:"reports/provider-reconciliation-satisfied-v1.json"}')"
   post_value "/v1/projects/$project_id/observations" "$reconciliation_clean" >/dev/null
-  record_gate 'provider-ledger reconciliation is clean' 'provider-ledger-reconciliation' operation "$production_subject" 1786584600 open '' ''
+  record_gate 'provider refund reconciliation is clean' 'provider-refund-reconciliation' operation "$production_subject" 1786584600 open '' ''
 
   reconciliation_violation="$(jq -cn \
     --arg fingerprint "$reconciliation_fingerprint" \
     --argjson subject "$production_subject" \
     --argjson context "$reconciliation_context" \
-    '{id:"provider-reconciliation-violated-v1",definitionId:"provider-ledger-reconciliation",definitionFingerprint:$fingerprint,stage:"operation",subject:$subject,context:$context,observedAt:1786584700,expiresAt:1786585600,outcome:"violated",report:"reports/provider-reconciliation-duplicate-or-wrong-amount-v1.json"}')"
+    '{id:"provider-reconciliation-violated-v1",definitionId:"provider-refund-reconciliation",definitionFingerprint:$fingerprint,stage:"operation",subject:$subject,context:$context,observedAt:1786584700,expiresAt:1786585600,outcome:"violated",report:"reports/provider-reconciliation-duplicate-or-wrong-amount-v1.json"}')"
   post_value "/v1/projects/$project_id/observations" "$reconciliation_violation" >/dev/null
-  record_gate 'reconciliation detects duplicate or wrong amount' 'provider-ledger-reconciliation' operation "$production_subject" 1786584700 closed assertion-violated diagnose-violation
+  record_gate 'reconciliation detects duplicate or wrong amount' 'provider-refund-reconciliation' operation "$production_subject" 1786584700 closed assertion-violated diagnose-violation
 
   live_trace="$work_dir/live-trace.json"
   jq -s \
@@ -227,7 +227,7 @@ run_live() {
       (.account.definitions | length) == 4 and
       (.account.qualifications | length) == 3 and
       (.account.observations | length) == 6 and
-      ([.account.challenges[] | select(.id == "pit-cf4c9dae4714e07d")] | length) == 1
+      ([.account.challenges[] | select(.id == "pit-2137b1921450cd8b")] | length) == 1
     ' >/dev/null
 
   jq -r '

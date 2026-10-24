@@ -16,14 +16,16 @@ Status: machine preparation implemented; human rehearsal pending
 
 - **00:00–04:00 — Money-loss incident.** Exit when the audience can state what may be charged
   twice and why green code is insufficient.
-- **04:00–09:00 — Claim and oracle.** Make stable identity and the provider-ledger authority
-  explicit before tooling appears.
+- **04:00–09:00 — Claim and oracle.** Make the stable provider key and public reconciliation
+  operation explicit before tooling appears.
 - **09:00–16:00 — Machine-tier holes.** Show progressive repair until missing realization and
   evidence are visibly diagnostic.
 - **16:00–21:00 — Evidence form.** Separate test existence from claim relevance. Then expose the
   false-positive judgment.
-- **21:00–27:00 — Hardening.** Let mutation challenge and staleness alter the assurance account.
-- **27:00–35:00 — Live distributed failure.** Keep the provider count at one across redelivery.
+- **21:00–27:00 — Hardening.** Let mutation challenge and staleness alter the assurance
+  account.
+- **27:00–35:00 — Live distributed failure.** Show how changing the key turns one business refund
+  into two provider operations; contrast it with the stable-key evidence.
 - **35:00–40:00 — Organizing model.** Introduce tiers and criticality. Make the small core and
   optional rigor explicit.
 - **40:00–43:00 — Lifecycle.** Show that CI and production observations prevent a repository

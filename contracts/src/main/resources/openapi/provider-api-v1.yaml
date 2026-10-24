@@ -1,40 +1,19 @@
 openapi: 3.0.3
 info:
   title: Provider Simulator API
-  version: 1.0.0
+  version: 2.0.0
 paths:
-  /provider/v1/refunds/{refundId}:
-    get:
-      operationId: getProviderRefund
-      parameters:
-        - name: refundId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: The provider's durable refund result.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProviderRefundResponse'
-        '404':
-          description: The provider has no operation for the RefundId.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-    put:
+  /provider/v1/refunds:
+    post:
       operationId: applyRefund
       parameters:
-        - name: refundId
-          in: path
+        - name: Idempotency-Key
+          in: header
           required: true
           schema:
             type: string
-            format: uuid
+            minLength: 1
+            maxLength: 255
       requestBody:
         required: true
         content:
@@ -49,14 +28,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProviderRefundResponse'
         '409':
-          description: The RefundId was already used with different financial fields.
+          description: The idempotency key was already used with a different request.
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
-  /provider/v1/refunds/{refundId}/applications:
+  /provider/v1/refunds/{idempotencyKey}:
     get:
-      operationId: countProviderRefundApplications
+      operationId: getProviderRefund
+      parameters:
+        - name: idempotencyKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The provider's durable operation for the supplied idempotency key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderRefundResponse'
+        '404':
+          description: The provider has no operation for the supplied idempotency key.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /provider/v1/business-refunds/{refundId}:
+    get:
+      operationId: summarizeBusinessRefund
       parameters:
         - name: refundId
           in: path
@@ -66,18 +67,21 @@ paths:
             format: uuid
       responses:
         '200':
-          description: Count of durable provider applications for this RefundId.
+          description: Fixture-only request history, public refund operations, and effect count for one RefundId.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProviderRefundApplicationCount'
+                $ref: '#/components/schemas/ProviderRefundSummary'
 components:
   schemas:
     ProviderRefundRequest:
       type: object
       additionalProperties: false
-      required: [paymentId, amount, currency]
+      required: [refundId, paymentId, amount, currency]
       properties:
+        refundId:
+          type: string
+          format: uuid
         paymentId:
           type: string
           format: uuid
@@ -90,14 +94,17 @@ components:
           type: string
           pattern: '^[A-Z]{3}$'
       example:
+        refundId: 44444444-4444-4444-4444-444444444444
         paymentId: 33333333-3333-3333-3333-333333333333
         amount: 30.00
         currency: EUR
     ProviderRefundResponse:
       type: object
       additionalProperties: false
-      required: [refundId, providerOperationId, outcome, appliedAt]
+      required: [idempotencyKey, refundId, providerOperationId, outcome, appliedAt]
       properties:
+        idempotencyKey:
+          type: string
         refundId:
           type: string
           format: uuid
@@ -111,24 +118,75 @@ components:
           type: string
           format: date-time
       example:
+        idempotencyKey: 44444444-4444-4444-4444-444444444444
         refundId: 44444444-4444-4444-4444-444444444444
         providerOperationId: 66666666-6666-6666-6666-666666666666
         outcome: succeeded
         appliedAt: '2026-08-12T09:00:01Z'
-    ProviderRefundApplicationCount:
+    ProviderRefundAttempt:
       type: object
       additionalProperties: false
-      required: [refundId, count]
+      required: [idempotencyKey, refundId, paymentId, amount, currency, attemptedAt]
+      properties:
+        idempotencyKey:
+          type: string
+        refundId:
+          type: string
+          format: uuid
+        paymentId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        attemptedAt:
+          type: string
+          format: date-time
+      example:
+        idempotencyKey: 44444444-4444-4444-4444-444444444444
+        refundId: 44444444-4444-4444-4444-444444444444
+        paymentId: 33333333-3333-3333-3333-333333333333
+        amount: 30.00
+        currency: EUR
+        attemptedAt: '2026-08-12T09:00:00Z'
+    ProviderRefundSummary:
+      type: object
+      additionalProperties: false
+      required: [refundId, attempts, operations, applicationCount]
       properties:
         refundId:
           type: string
           format: uuid
-        count:
+        attempts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderRefundAttempt'
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderRefundResponse'
+        applicationCount:
           type: integer
           minimum: 0
       example:
         refundId: 44444444-4444-4444-4444-444444444444
-        count: 1
+        attempts:
+          - idempotencyKey: 44444444-4444-4444-4444-444444444444
+            refundId: 44444444-4444-4444-4444-444444444444
+            paymentId: 33333333-3333-3333-3333-333333333333
+            amount: 30.00
+            currency: EUR
+            attemptedAt: '2026-08-12T09:00:00Z'
+        operations:
+          - idempotencyKey: 44444444-4444-4444-4444-444444444444
+            refundId: 44444444-4444-4444-4444-444444444444
+            providerOperationId: 66666666-6666-6666-6666-666666666666
+            outcome: succeeded
+            appliedAt: '2026-08-12T09:00:01Z'
+        applicationCount: 1
     Problem:
       type: object
       required: [type, title, status]

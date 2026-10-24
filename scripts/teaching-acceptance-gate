@@ -1,0 +1,48 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+SELECTED_STAGE="${TMPDIR:-/tmp}/azimuth-refund-lab-teaching-stage"
+ACCOUNTS="$PROJECT_ROOT/demo/teaching/fixtures/stage-accounts.tsv"
+
+if [ "$#" -ne 0 ]; then
+  echo "usage: scripts/teaching-acceptance-gate" >&2
+  exit 2
+fi
+if [ ! -f "$SELECTED_STAGE" ]; then
+  echo "no teaching stage selected; run scripts/demo-stage first" >&2
+  exit 2
+fi
+
+stage=$(sed -n '1p' "$SELECTED_STAGE")
+line=$(awk -F '|' -v wanted="$stage" \
+  '$1 == wanted { print; found = 1 } END { exit !found }' "$ACCOUNTS") || {
+  echo "invalid selected teaching stage: $stage" >&2
+  exit 2
+}
+manifests=$(printf '%s\n' "$line" | cut -d '|' -f 5)
+challenge_policy=$(printf '%s\n' "$line" | cut -d '|' -f 6)
+
+check_status=0
+check_output=$("$PROJECT_ROOT/scripts/azimuth-check" 2>&1) || check_status=$?
+printf '%s\n' "$check_output"
+
+set -- node "$PROJECT_ROOT/demo/teaching/check-challenges.mjs" \
+  "$challenge_policy" "$PROJECT_ROOT"
+previous_ifs=$IFS
+IFS=,
+for manifest in $manifests; do
+  set -- "$@" "$PROJECT_ROOT/$manifest"
+done
+IFS=$previous_ifs
+
+challenge_status=0
+challenge_output=$("$@" 2>&1) || challenge_status=$?
+printf '%s\n' "$challenge_output"
+
+if [ "$check_status" -ne 0 ] || [ "$challenge_status" -ne 0 ]; then
+  echo "acceptance gate: CLOSED" >&2
+  exit 1
+fi
+
+echo "acceptance gate: OPEN"

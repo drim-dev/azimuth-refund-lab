@@ -7,7 +7,9 @@ import dev.drim.azimuth.refund.contracts.event.RefundRequestedV1;
 import dev.drim.azimuth.refund.contracts.event.RefundResultV1;
 import dev.drim.azimuth.refund.contracts.http.ApproveRefundRequest;
 import dev.drim.azimuth.refund.contracts.http.ProviderRefundRequest;
+import dev.drim.azimuth.refund.contracts.http.ProviderRefundAttempt;
 import dev.drim.azimuth.refund.contracts.http.ProviderRefundResponse;
+import dev.drim.azimuth.refund.contracts.http.ProviderRefundSummary;
 import dev.drim.azimuth.refund.contracts.http.RefundView;
 import dev.drim.azimuth.refund.contracts.http.TripFinancialView;
 import java.io.IOException;
@@ -45,7 +47,11 @@ class WireCompatibilityTest {
         assertGoldenRoundTrip(
                 "/contracts/http/provider-refund-request.json", ProviderRefundRequest.class);
         assertGoldenRoundTrip(
+                "/contracts/http/provider-refund-attempt.json", ProviderRefundAttempt.class);
+        assertGoldenRoundTrip(
                 "/contracts/http/provider-refund-response.json", ProviderRefundResponse.class);
+        assertGoldenRoundTrip(
+                "/contracts/http/provider-refund-summary.json", ProviderRefundSummary.class);
     }
 
     @Test
@@ -68,12 +74,16 @@ class WireCompatibilityTest {
                 "/contracts/http/provider-refund-request.json");
         assertSchemaExample(
                 providerApi,
+                "ProviderRefundAttempt",
+                "/contracts/http/provider-refund-attempt.json");
+        assertSchemaExample(
+                providerApi,
                 "ProviderRefundResponse",
                 "/contracts/http/provider-refund-response.json");
         assertSchemaExample(
                 providerApi,
-                "ProviderRefundApplicationCount",
-                "/contracts/http/provider-refund-application-count.json");
+                "ProviderRefundSummary",
+                "/contracts/http/provider-refund-summary.json");
     }
 
     @Test

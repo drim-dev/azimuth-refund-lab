@@ -1,17 +1,17 @@
 {
   "id": "refund-redelivery-canary",
   "claim": {
-    "spec": "refunds/provider-effects",
-    "claim": "redelivery-after-provider-success",
-    "contractFingerprint": "7f3653045d5810a1d6a0f0b99f1986026708784fa9e352bb917490bc66fea156"
+    "spec": "refunds/execution",
+    "claim": "repeated-processing-does-not-repeat-refund",
+    "contractFingerprint": "eec4ec3bc67478b89e5f825900ea0c34c8a123abd75e79d8e67e6e3d82a1fc5d"
   },
-  "assertion": "Every refund completed by the bounded canary has one matching durable provider-ledger application.",
+  "assertion": "Every refund completed by the bounded canary has one matching refund transaction in the provider reconciliation interface.",
   "scope": "operational",
   "quantification": "universal",
   "oracle": "relational",
   "stage": "canary",
   "inputs": [
-    "provider-ledger/reconciliation-query@sha256:canary-v1",
+    "provider-api/refund-reconciliation-query@sha256:canary-v1",
     "refund-api/succeeded-projection@sha256:canary-v1"
   ],
   "requiredContext": {

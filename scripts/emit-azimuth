@@ -27,14 +27,20 @@ mkdir -p "$PARTS" "$CLASS_SCAN" "$(dirname -- "$OUTPUT")"
 
 printf '%s\n' \
   "$PROJECT_ROOT/services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderClient.java" \
+  "$PROJECT_ROOT/services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeys.java" \
   "$PROJECT_ROOT/services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/RefundRequestedConsumer.java" \
+  "$PROJECT_ROOT/services/refund-worker/src/main/java/dev/drim/azimuth/refund/worker/RefundResultPublisher.java" \
   "$PROJECT_ROOT/services/refund-worker/src/test/java/dev/drim/azimuth/refund/worker/RefundWorkerComponentTest.java" \
+  "$PROJECT_ROOT/services/refund-worker/src/test/java/dev/drim/azimuth/refund/worker/ProviderIdempotencyKeysTest.java" \
+  "$PROJECT_ROOT/services/refund-api/src/main/java/dev/drim/azimuth/refund/api/messaging/RefundResultProcessor.java" \
+  "$PROJECT_ROOT/services/refund-api/src/test/java/dev/drim/azimuth/refund/api/RefundApiComponentTest.java" \
   "$PROJECT_ROOT/services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderLedgerEntry.java" \
   "$PROJECT_ROOT/services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderRefundLedger.java" \
   "$PROJECT_ROOT/services/provider-simulator/src/main/java/dev/drim/azimuth/refund/provider/ProviderRefundService.java" \
   "$PROJECT_ROOT/services/provider-simulator/src/test/java/dev/drim/azimuth/refund/provider/ProviderRefundComponentTest.java" \
   > "$PARTS/annotated.expected"
 find \
+  "$PROJECT_ROOT/services/refund-api/src" \
   "$PROJECT_ROOT/services/refund-worker/src" \
   "$PROJECT_ROOT/services/provider-simulator/src" \
   -type f -name '*.java' -exec grep -l 'dev.drim.azimuth.Azimuth' {} + \
@@ -47,27 +53,44 @@ cmp "$PARTS/annotated.expected" "$PARTS/annotated.actual"
 "$PROJECT_ROOT/mvnw" -q -f "$PROJECT_ROOT/services/refund-worker/pom.xml" \
   -DincludeScope=test dependency:build-classpath \
   -Dmdep.outputFile="$PARTS/worker.classpath"
+"$PROJECT_ROOT/mvnw" -q -f "$PROJECT_ROOT/services/refund-api/pom.xml" \
+  -DincludeScope=test dependency:build-classpath \
+  -Dmdep.outputFile="$PARTS/api.classpath"
 "$PROJECT_ROOT/mvnw" -q -f "$PROJECT_ROOT/services/provider-simulator/pom.xml" \
   -DincludeScope=test dependency:build-classpath \
   -Dmdep.outputFile="$PARTS/provider.classpath"
 
 JVM_CLASSPATH="$TOOLS/jvm/annotations:$TOOLS/jvm/extractor"
+JVM_CLASSPATH="$JVM_CLASSPATH:$(tr '\n' ':' < "$PARTS/api.classpath")"
 JVM_CLASSPATH="$JVM_CLASSPATH:$(tr '\n' ':' < "$PARTS/worker.classpath")"
 JVM_CLASSPATH="$JVM_CLASSPATH:$(tr '\n' ':' < "$PARTS/provider.classpath")"
 JVM_CLASSPATH="$JVM_CLASSPATH:$PROJECT_ROOT/services/refund-worker/target/classes"
 JVM_CLASSPATH="$JVM_CLASSPATH:$PROJECT_ROOT/services/refund-worker/target/test-classes"
+JVM_CLASSPATH="$JVM_CLASSPATH:$PROJECT_ROOT/services/refund-api/target/classes"
+JVM_CLASSPATH="$JVM_CLASSPATH:$PROJECT_ROOT/services/refund-api/target/test-classes"
 JVM_CLASSPATH="$JVM_CLASSPATH:$PROJECT_ROOT/services/provider-simulator/target/classes"
 JVM_CLASSPATH="$JVM_CLASSPATH:$PROJECT_ROOT/services/provider-simulator/target/test-classes"
 
 find "$CLASS_SCAN" -type f -name '*.class' -delete
 for class in \
   dev/drim/azimuth/refund/worker/ProviderClient.class \
+  dev/drim/azimuth/refund/worker/ProviderIdempotencyKeys.class \
   dev/drim/azimuth/refund/worker/RefundRequestedConsumer.class \
-  dev/drim/azimuth/refund/worker/RefundWorkerComponentTest.class
+  dev/drim/azimuth/refund/worker/RefundResultPublisher.class \
+  dev/drim/azimuth/refund/worker/RefundWorkerComponentTest.class \
+  dev/drim/azimuth/refund/worker/ProviderIdempotencyKeysTest.class
 do
   mkdir -p "$CLASS_SCAN/$(dirname -- "$class")"
   cp "$PROJECT_ROOT/services/refund-worker/target/classes/$class" "$CLASS_SCAN/$class" 2>/dev/null || \
     cp "$PROJECT_ROOT/services/refund-worker/target/test-classes/$class" "$CLASS_SCAN/$class"
+done
+for class in \
+  dev/drim/azimuth/refund/api/messaging/RefundResultProcessor.class \
+  dev/drim/azimuth/refund/api/RefundApiComponentTest.class
+do
+  mkdir -p "$CLASS_SCAN/$(dirname -- "$class")"
+  cp "$PROJECT_ROOT/services/refund-api/target/classes/$class" "$CLASS_SCAN/$class" 2>/dev/null || \
+    cp "$PROJECT_ROOT/services/refund-api/target/test-classes/$class" "$CLASS_SCAN/$class"
 done
 for class in \
   dev/drim/azimuth/refund/provider/ProviderRefundService.class \
@@ -83,6 +106,8 @@ done
 java -cp "$JVM_CLASSPATH" dev.drim.azimuth.emit.Main \
   --output "$PARTS/jvm.json" \
   --root "$PROJECT_ROOT" \
+  --source-root "$PROJECT_ROOT/services/refund-api/src/main/java" \
+  --source-root "$PROJECT_ROOT/services/refund-api/src/test/java" \
   --source-root "$PROJECT_ROOT/services/refund-worker/src/main/java" \
   --source-root "$PROJECT_ROOT/services/refund-worker/src/test/java" \
   --source-root "$PROJECT_ROOT/services/provider-simulator/src/main/java" \
@@ -92,7 +117,9 @@ java -cp "$JVM_CLASSPATH" dev.drim.azimuth.emit.Main \
 node "$SOURCE/tools/extractors/typescript/dist/cli.js" \
   --output "$PARTS/typescript.json" \
   --root "$PROJECT_ROOT" \
-  "$PROJECT_ROOT/tests/system"
+  "$PROJECT_ROOT/tests/system" \
+  "$PROJECT_ROOT/web/app" \
+  "$PROJECT_ROOT/web/components"
 
 node "$PROJECT_ROOT/tooling/azimuth-typescript/merge-manifests.mjs" \
   "$OUTPUT" "$PARTS/jvm.json" "$PARTS/typescript.json"

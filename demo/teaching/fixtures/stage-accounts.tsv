@@ -1,0 +1,8 @@
+# id|model|pre-review-model|standards|manifests|challenge-policy|expected-check|expected-diagnostic
+missing-cover|demo/teaching/fixtures/base/model|-|demo/teaching/fixtures/base/standards.md|demo/teaching/fixtures/manifests/missing-cover.json|optional|1|error uncovered
+wrong-evidence-form|demo/teaching/fixtures/base/model|-|demo/teaching/fixtures/base/standards.md|demo/teaching/fixtures/manifests/wrong-evidence-form.json|optional|1|error wrong-form
+dishonest-green|demo/teaching/fixtures/dishonest/model|demo/teaching/fixtures/base/model|demo/teaching/fixtures/base/standards.md|demo/teaching/fixtures/manifests/dishonest-green.json|optional|1|error dishonest-tag-judged
+weak-oracle|demo/teaching/fixtures/weak/model|demo/teaching/fixtures/base/model|demo/teaching/fixtures/base/standards.md|demo/teaching/fixtures/manifests/weak-oracle.json|optional|1|error toothless-evidence
+surviving-mutant|demo/teaching/fixtures/surviving/model|demo/teaching/fixtures/base/model|demo/teaching/fixtures/base/standards.md|demo/teaching/fixtures/manifests/surviving-mutant.json|required|1|error toothless-evidence
+stale-judgment|demo/teaching/fixtures/stale/model|-|demo/teaching/fixtures/base/standards.md|demo/teaching/fixtures/manifests/stale-judgment.json|optional|1|error stale-judgment
+final-account|-|-|-|.azimuth/linkage.json,tooling/pit/worker-idempotency-observation.json|required|0|no holes

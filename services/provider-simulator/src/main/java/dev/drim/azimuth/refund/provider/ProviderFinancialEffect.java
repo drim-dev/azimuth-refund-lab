@@ -6,6 +6,7 @@ import java.util.UUID;
 
 record ProviderFinancialEffect(
         UUID effectId,
+        String idempotencyKey,
         UUID refundId,
         UUID paymentId,
         BigDecimal amount,
@@ -15,6 +16,7 @@ record ProviderFinancialEffect(
     static ProviderFinancialEffect from(ProviderLedgerEntry refund, Instant appliedAt) {
         return new ProviderFinancialEffect(
                 UUID.randomUUID(),
+                refund.idempotencyKey(),
                 refund.refundId(),
                 refund.paymentId(),
                 refund.amount(),

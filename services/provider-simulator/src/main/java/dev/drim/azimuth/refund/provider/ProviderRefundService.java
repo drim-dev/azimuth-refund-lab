@@ -5,6 +5,7 @@ import dev.drim.azimuth.Azimuth.Realizes;
 import dev.drim.azimuth.refund.contracts.event.RefundOutcome;
 import dev.drim.azimuth.refund.contracts.http.ProviderRefundRequest;
 import dev.drim.azimuth.refund.contracts.http.ProviderRefundResponse;
+import dev.drim.azimuth.refund.contracts.http.ProviderRefundSummary;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -18,27 +19,29 @@ class ProviderRefundService {
 
     private final ProviderRefundLedger providerRefundLedger;
     private final ProviderFinancialEffects providerFinancialEffects;
-    private final ProviderRefundApplicationMode applicationMode;
+    private final ProviderRequestAttempts providerRequestAttempts;
     private final Clock clock = Clock.systemUTC();
 
     ProviderRefundService(
             ProviderRefundLedger providerRefundLedger,
             ProviderFinancialEffects providerFinancialEffects,
-            ProviderRefundApplicationMode applicationMode
+            ProviderRequestAttempts providerRequestAttempts
     ) {
         this.providerRefundLedger = providerRefundLedger;
         this.providerFinancialEffects = providerFinancialEffects;
-        this.applicationMode = applicationMode;
+        this.providerRequestAttempts = providerRequestAttempts;
     }
 
     @Transactional
-    @Realizes(spec = "refunds/provider-effects", scenario = "redelivery-after-provider-success")
-    @ImplementsMechanism(spec = "refunds/provider-effects", mechanism = "provider-refund-ledger")
-    public ProviderRefundResponse apply(UUID refundId, ProviderRefundRequest request) {
-        validate(refundId, request);
+    @Realizes(spec = "refunds/execution", scenario = "repeated-processing-does-not-repeat-refund")
+    @ImplementsMechanism(spec = "refunds/execution", mechanism = "provider-idempotency-contract")
+    public ProviderRefundResponse apply(String idempotencyKey, ProviderRefundRequest request) {
+        validate(idempotencyKey, request);
+        providerRequestAttempts.record(idempotencyKey, request, Instant.now(clock));
 
         ProviderLedgerEntry candidate = new ProviderLedgerEntry(
-                refundId,
+                idempotencyKey,
+                request.refundId(),
                 request.paymentId(),
                 request.amount(),
                 request.currency(),
@@ -47,34 +50,42 @@ class ProviderRefundService {
                 Instant.now(clock));
 
         boolean createdIdempotencyRecord = providerRefundLedger.insertIfAbsent(candidate) == 1;
-        ProviderLedgerEntry stored = providerRefundLedger.findRequired(refundId);
+        ProviderLedgerEntry stored = providerRefundLedger.findRequired(idempotencyKey);
         if (!stored.matches(request)) {
-            throw new ProviderRefundConflictException(refundId);
+            throw new ProviderRefundConflictException(idempotencyKey);
         }
-        if (applicationMode.recordsFinancialEffect(createdIdempotencyRecord)) {
+        if (createdIdempotencyRecord) {
             providerFinancialEffects.record(ProviderFinancialEffect.from(stored, Instant.now(clock)));
         }
 
         return stored.toResponse();
     }
 
-    public ProviderRefundResponse get(UUID refundId) {
-        return providerRefundLedger.find(refundId)
+    public ProviderRefundResponse get(String idempotencyKey) {
+        return providerRefundLedger.find(idempotencyKey)
                 .map(ProviderLedgerEntry::toResponse)
-                .orElseThrow(() -> new ProviderRefundNotFoundException(refundId));
+                .orElseThrow(() -> new ProviderRefundNotFoundException(idempotencyKey));
     }
 
-    public ProviderRefundApplicationCount countApplications(UUID refundId) {
-        return new ProviderRefundApplicationCount(
+    public ProviderRefundSummary summarize(UUID refundId) {
+        return new ProviderRefundSummary(
                 refundId,
+                providerRequestAttempts.findByRefundId(refundId),
+                providerRefundLedger.findByRefundId(refundId).stream()
+                        .map(ProviderLedgerEntry::toResponse)
+                        .toList(),
                 providerFinancialEffects.count(refundId));
     }
 
-    private static void validate(UUID refundId, ProviderRefundRequest request) {
-        if (refundId == null) {
+    private static void validate(String idempotencyKey, ProviderRefundRequest request) {
+        if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.length() > 255) {
+            throw new InvalidProviderRefundException(
+                    "Idempotency-Key must contain between 1 and 255 characters");
+        }
+        if (request == null || request.refundId() == null) {
             throw new InvalidProviderRefundException("refundId is required");
         }
-        if (request == null || request.paymentId() == null) {
+        if (request.paymentId() == null) {
             throw new InvalidProviderRefundException("paymentId is required");
         }
         if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {

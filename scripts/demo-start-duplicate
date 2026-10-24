@@ -1,0 +1,25 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+for command_name in docker curl node; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    echo "missing required command: $command_name" >&2
+    exit 1
+  }
+done
+
+docker compose --project-directory "$PROJECT_ROOT" down --volumes --remove-orphans
+docker compose \
+  --project-directory "$PROJECT_ROOT" \
+  -f "$PROJECT_ROOT/compose.yaml" \
+  -f "$PROJECT_ROOT/compose.demo.yaml" \
+  -f "$PROJECT_ROOT/compose.failure.yaml" \
+  up --detach --no-build
+"$PROJECT_ROOT/scripts/demo-doctor"
+"$PROJECT_ROOT/scripts/demo-failure" --readiness
+
+echo "unsafe-worker demo is ready at ${REFUND_LAB_URL:-http://127.0.0.1:3100}"
+echo "browser journey: Support console -> Arm interruption after provider response -> Approve"
+echo "                 -> Interrupt processing and trigger redelivery -> Rider view"

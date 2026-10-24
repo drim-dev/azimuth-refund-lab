@@ -1,19 +1,19 @@
 {
-  "executed_at": "2026-08-13T02:18:04+06:00",
-  "strong_oracle_executed_at": "2026-08-13T02:18:23+06:00",
+  "executed_at": "2026-08-13T18:44:21+06:00",
+  "strong_oracle_executed_at": "2026-08-13T18:44:24+06:00",
   "java_release": 21,
   "pit_version": "1.22.0",
   "junit_platform_plugin_version": "1.2.3",
   "weak_command": "./mvnw -o -B -f demo/teaching/pit-survivor/pom.xml test org.pitest:pitest-maven:mutationCoverage",
   "strong_command": "./mvnw -o -B -f demo/teaching/pit-survivor/pom.xml -Pstrong-oracle test org.pitest:pitest-maven:mutationCoverage",
   "inputs": {
-    "pom.xml": "2de40bca8cb8fe1185ae168f9e9d9e0f1a98f78ff46f8a580b472e8dd992d331",
-    "RefundEffect.java": "702c12bf0301c7c662ac4ca57a3a2333cc0b2c343ac92a13527440cd67d18fa6",
-    "WeakResponseOracleTest.java": "e836e0e79a4e6ee30be6312f9d167c1fe7ce38392c600e2a16f480a952b3ecfc",
-    "StrongLedgerOracleTest.java": "828f905959698d2ffee9614aef83c2b1b8b92de3bd2497566b380bb976c07af9"
+    "pom.xml": "646a60fee4cc37c6ef7b885fa218f75fe2f5f1ab7280120ec15b532f1df30a1a",
+    "WorkerProviderAdapter.java": "0ca18e29ed5da796d979a25659ad4d95221895c849f96a99b8b24ce0a51c5c38",
+    "PaymentProvider.java": "fe432c7da97fa85b0e25f939a9ccbba77d4140ed5414b8878ffc98fbdcd370e1",
+    "RefundRedeliveryComposedTest.java": "d026774409ce1a747236114a707a61474909acaf1f4dec32edb6b6e149d34b25"
   },
-  "weak_report_sha256": "cda40583bade5b5bb647f425084c90c5611e5ac16a0658ba4ae66aa134d10925",
-  "strong_report_sha256": "647fe31000679dbe32dda575666ace06ed2b43023ba6d1ad5edfd9f18be7aee9",
+  "weak_report_sha256": "f0bcc8b8d0ba854e3c8cd2ea2d04b6d2d23da6be25297ddc72198f5f69a1c7d5",
+  "strong_report_sha256": "4f7b559d706aabccbcd430e735d1355fff6999a1c378478fd005b07b957277aa",
   "weak_result": {
     "generated": 1,
     "killed": 0,

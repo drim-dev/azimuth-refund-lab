@@ -4,6 +4,21 @@ set -eu
 SYSTEM_TEST_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_ROOT=$(CDPATH= cd -- "$SYSTEM_TEST_ROOT/../.." && pwd)
 
+case "${1:---correct}" in
+  --correct)
+    COMPOSE_FILES="-f $PROJECT_ROOT/compose.yaml"
+    SCENARIO=correct
+    ;;
+  --duplicate)
+    COMPOSE_FILES="-f $PROJECT_ROOT/compose.yaml -f $PROJECT_ROOT/compose.failure.yaml"
+    SCENARIO=duplicate
+    ;;
+  *)
+    echo "Usage: tests/system/run-compose [--correct | --duplicate]" >&2
+    exit 2
+    ;;
+esac
+
 cleanup() {
   if [ "${KEEP_REFUND_LAB_STACK:-0}" != "1" ]; then
     docker compose --project-directory "$PROJECT_ROOT" down --volumes --remove-orphans
@@ -12,8 +27,10 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 docker compose --project-directory "$PROJECT_ROOT" down --volumes --remove-orphans
-docker compose --project-directory "$PROJECT_ROOT" up --detach --build
+# The paths are fixed repository inputs, so word splitting here supplies repeated Compose flags.
+# shellcheck disable=SC2086
+docker compose --project-directory "$PROJECT_ROOT" $COMPOSE_FILES up --detach --build
 "$PROJECT_ROOT/scripts/demo-doctor"
 
 cd "$SYSTEM_TEST_ROOT"
-npx playwright test
+REFUND_LAB_SCENARIO=$SCENARIO npx playwright test

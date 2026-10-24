@@ -10,7 +10,7 @@
 
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
-    <pit.target.test>dev.drim.azimuth.teaching.WeakResponseOracleTest</pit.target.test>
+    <pit.group>weak-oracle</pit.group>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -48,13 +48,16 @@
         </dependencies>
         <configuration>
           <targetClasses>
-            <param>dev.drim.azimuth.teaching.RefundEffect</param>
+            <param>dev.drim.azimuth.teaching.WorkerProviderAdapter</param>
           </targetClasses>
           <targetTests>
-            <param>${pit.target.test}</param>
+            <param>dev.drim.azimuth.teaching.RefundRedeliveryComposedTest</param>
           </targetTests>
+          <includedGroups>
+            <param>${pit.group}</param>
+          </includedGroups>
           <mutators>
-            <mutator>REMOVE_CONDITIONALS_EQUAL_IF</mutator>
+            <mutator>NEGATE_CONDITIONALS</mutator>
           </mutators>
           <outputFormats>
             <param>XML</param>
@@ -73,7 +76,7 @@
     <profile>
       <id>strong-oracle</id>
       <properties>
-        <pit.target.test>dev.drim.azimuth.teaching.StrongLedgerOracleTest</pit.target.test>
+        <pit.group>direct-oracle</pit.group>
       </properties>
     </profile>
   </profiles>

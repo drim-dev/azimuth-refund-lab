@@ -1,5 +1,5 @@
-# sequence|claim|verdict|provenance|reason
-1|provider-refund-applied-once|sound|constructed false positive|The first judge trusted the declared tag and response assertion.
-2|provider-refund-applied-once|dishonest-tag|constructed correction|Reading the body showed that universal and relational were not honest declarations.
-3|provider-refund-applied-once|toothless|constructed correction|A response-only oracle still accepted a duplicate financial effect.
-4|provider-refund-applied-once|sound|authentic current account|Direct component evidence reads the authoritative provider ledger; the application PIT timeout residual remains explicit.
+# sequence|visible-from|lineage|claim|verdict|provenance|status|reason
+1|dishonest-green|provider-refund-applied-once|provider-refund-applied-once|sound|constructed false positive|superseded|The first judge trusted the declared tag and response assertion.
+2|dishonest-green|provider-refund-applied-once|repeated-processing-does-not-repeat-refund|dishonest-tag|constructed correction|active at stage 3|Reading the body showed that universal and relational were not honest declarations.
+3|weak-oracle|provider-refund-applied-once|repeated-processing-does-not-repeat-refund|toothless|constructed correction|active at stages 4–5|A response-only oracle still accepted a duplicate financial effect.
+4|final-account|provider-refund-applied-once|repeated-processing-does-not-repeat-refund|sound|authentic current account|current|The composed test observes two attempts with one key, one provider operation and eventual rider success; the focused worker mutant is killed.

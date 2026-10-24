@@ -11,15 +11,9 @@ if (!linkageFile || !outputFile) {
 const linkage = readJson(linkageFile, "linkage manifest");
 const realizes = relationArray(linkage.realizes, "realizes");
 const covers = relationArray(linkage.covers, "covers");
-const targetSites = [
-  "dev.drim.azimuth.refund.provider.ProviderLedgerEntry.matches",
-  "dev.drim.azimuth.refund.provider.ProviderRefundLedger.insertIfAbsent",
-  "dev.drim.azimuth.refund.provider.ProviderRefundService.apply",
-];
+const targetSites = ["dev.drim.azimuth.refund.worker.ProviderIdempotencyKeys.forRefund"];
 const targetClasses = [
-  "dev.drim.azimuth.refund.provider.ProviderLedgerEntry",
-  "dev.drim.azimuth.refund.provider.ProviderRefundLedger",
-  "dev.drim.azimuth.refund.provider.ProviderRefundService",
+  "dev.drim.azimuth.refund.worker.ProviderIdempotencyKeys",
 ];
 const targetRelations = targetSites.map((site) => {
   const matches = realizes.filter((relation) => relation.lang === "java" && relation.site === site);
@@ -38,14 +32,14 @@ const selected = covers
   .filter((relation) => relation.lang === "java")
   .filter((relation) => relation.spec === target.spec && relation.scenario === target.scenario)
   .filter((relation) => relation.site.startsWith(
-    "dev.drim.azimuth.refund.provider.ProviderRefundComponentTest."))
+    "dev.drim.azimuth.refund.worker.ProviderIdempotencyKeysTest."))
   .sort((left, right) => left.site.localeCompare(right.site));
 
 if (selected.length === 0) {
-  fail(`claim linked from ${targetSite} has no provider component Covers site`);
+  fail(`claim linked from ${targetSites[0]} has no worker key-selection Covers site`);
 }
 if (new Set(selected.map((relation) => relation.site)).size !== selected.length) {
-  fail("provider component Covers sites are not unique");
+  fail("worker key-selection Covers sites are not unique");
 }
 
 const selection = {
@@ -53,14 +47,14 @@ const selection = {
   target_classes: targetClasses,
   selected_tests: selected.map((relation) => ({
     site: relation.site,
-    pit_names: [pitDisplayName(relation.site)],
+    pit_names: [pitDisplayName(relation.site), pitEngineName(relation.site)],
   })),
 };
 
 fs.mkdirSync(path.dirname(path.resolve(outputFile)), { recursive: true });
 fs.writeFileSync(outputFile, `${JSON.stringify(selection, null, 2)}\n`);
 process.stderr.write(
-  `${targetClasses.length} classes: selected ${selected.length} linked provider component test(s)`
+  `${targetClasses.length} class: selected ${selected.length} linked worker key-selection test(s)`
     + ` → ${outputFile}\n`,
 );
 
@@ -70,6 +64,16 @@ function pitDisplayName(site) {
     fail(`cannot convert JVM method site ${site} to a PIT test name`);
   }
   return `${site.slice(separator + 1)}(${site.slice(0, separator)})`;
+}
+
+function pitEngineName(site) {
+  const separator = site.lastIndexOf(".");
+  if (separator <= 0 || separator === site.length - 1) {
+    fail(`cannot convert JVM method site ${site} to a PIT engine name`);
+  }
+  const className = site.slice(0, separator);
+  const methodName = site.slice(separator + 1);
+  return `${className}.[engine:junit-jupiter]/[class:${className}]/[method:${methodName}()]`;
 }
 
 function relationArray(value, name) {

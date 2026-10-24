@@ -2,8 +2,8 @@
   "kind": "recorded-protocol-expectation",
   "executionEvidence": false,
   "project": "azimuth-refund-lab",
-  "projectSnapshot": "cd7da23b0344f39733fb55e74fe0498fb64cb370384a50dafd742624ef07dbf4",
-  "claimContract": "7f3653045d5810a1d6a0f0b99f1986026708784fa9e352bb917490bc66fea156",
+  "projectSnapshot": "2f109391e68c1859aef987225851570d6531e8de6527dcf2a9d482c6cec0b611",
+  "claimContract": "eec4ec3bc67478b89e5f825900ea0c34c8a123abd75e79d8e67e6e3d82a1fc5d",
   "subject": {
     "revision": "demo-revision-redelivery-v1",
     "environment": "ci"
@@ -45,11 +45,11 @@
       "work": []
     },
     {
-      "label": "PIT challenge reports findings",
+      "label": "focused PIT challenge is clean",
       "at": 1786583600,
-      "status": "closed",
-      "reasons": ["challenge-findings"],
-      "work": ["judge-challenge"]
+      "status": "open",
+      "reasons": [],
+      "work": []
     },
     {
       "label": "definition semantics drift",
@@ -80,7 +80,7 @@
       "work": ["renew-observation"]
     },
     {
-      "label": "provider-ledger reconciliation is clean",
+      "label": "provider refund reconciliation is clean",
       "at": 1786584600,
       "status": "open",
       "reasons": [],

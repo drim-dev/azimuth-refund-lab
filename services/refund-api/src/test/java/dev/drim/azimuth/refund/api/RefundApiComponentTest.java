@@ -3,6 +3,10 @@ package dev.drim.azimuth.refund.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import dev.drim.azimuth.Azimuth.Covers;
+import dev.drim.azimuth.Azimuth.Oracle;
+import dev.drim.azimuth.Azimuth.Quantification;
+import dev.drim.azimuth.Azimuth.Scope;
 import dev.drim.azimuth.refund.contracts.event.RefundEventNames;
 import dev.drim.azimuth.refund.contracts.event.RefundMessaging;
 import dev.drim.azimuth.refund.contracts.event.RefundOutcome;
@@ -154,6 +158,12 @@ class RefundApiComponentTest {
     }
 
     @Test
+    @Covers(
+            spec = "refunds/execution",
+            scenario = "interrupted-processing-eventually-completes",
+            scope = Scope.component,
+            quantification = Quantification.example,
+            oracle = Oracle.relational)
     void resultRedeliveryAdvancesTheProjectionOnce() throws Exception {
         RefundView pending = objectMapper.readValue(approve("30.00", true).body(), RefundView.class);
         assertThat(rabbit.receive(RefundMessaging.WORKER_QUEUE, 5_000)).isNotNull();

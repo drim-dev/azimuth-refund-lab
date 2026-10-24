@@ -65,6 +65,40 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
       </plugin>
+      <plugin>
+        <groupId>org.pitest</groupId>
+        <artifactId>pitest-maven</artifactId>
+        <version>1.22.0</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-junit5-plugin</artifactId>
+            <version>1.2.3</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <targetClasses>
+            <param>dev.drim.azimuth.refund.worker.ProviderIdempotencyKeys</param>
+          </targetClasses>
+          <targetTests>
+            <param>dev.drim.azimuth.refund.worker.ProviderIdempotencyKeysTest</param>
+          </targetTests>
+          <includedGroups>
+            <param>mutation</param>
+          </includedGroups>
+          <mutators>
+            <mutator>NEGATE_CONDITIONALS</mutator>
+          </mutators>
+          <outputFormats>
+            <param>XML</param>
+          </outputFormats>
+          <timestampedReports>false</timestampedReports>
+          <threads>1</threads>
+          <failWhenNoMutations>true</failWhenNoMutations>
+          <mutationThreshold>100</mutationThreshold>
+          <coverageThreshold>0</coverageThreshold>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 </project>

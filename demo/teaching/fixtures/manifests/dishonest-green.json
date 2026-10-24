@@ -1,8 +1,8 @@
 {
   "realizes": [
     {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
       "site": "demo.teaching.RefundService.apply",
       "file": "demo/teaching/fixtures/source/RefundService.java",
       "lang": "java",
@@ -11,12 +11,12 @@
   ],
   "covers": [
     {
-      "spec": "refunds/provider-effects",
-      "scenario": "redelivery-after-provider-success",
-      "site": "demo.teaching.TrivialStatusTest.repeatedRequestReturnsSuccess",
-      "file": "demo/teaching/fixtures/source/TrivialStatusTest.java",
+      "spec": "refunds/execution",
+      "scenario": "repeated-processing-does-not-repeat-refund",
+      "site": "demo.teaching.RefundRedeliveryComposedTest.refundRedeliveryPreservesOneRefund",
+      "file": "demo/teaching/fixtures/source/RefundRedeliveryComposedTest.java",
       "lang": "java",
-      "source_fingerprint": "30e8befdb16564e5c6d3525e20a2921fad2912b190b3ad074333f7674fc9e728",
+      "source_fingerprint": "6c0572b98e1cb5947234e4f0e295d2754dd3542b89c0ac48f094c54160f1fbb3",
       "scope": "component",
       "quantification": "universal",
       "oracle": "relational"

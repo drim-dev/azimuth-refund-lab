@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record ProviderRefundResponse(
+        String idempotencyKey,
         UUID refundId,
         UUID providerOperationId,
         RefundOutcome outcome,

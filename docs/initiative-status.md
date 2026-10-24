@@ -14,9 +14,9 @@ worker failpoint and composed journey. It intentionally used no Azimuth claim ta
 
 Status: accepted and archived locally
 
-The critical refund invariant has explicit realization, mechanism and evidence linkage plus a
-current sound judgment. The real application PIT challenge remains adverse and inconclusive: eleven
-mutation minions timed out. It is not counted as positive evidence.
+The critical refund invariant has explicit realization, mechanism and evidence linkage. The
+focused application PIT challenge kills the stable-key branch mutant. Fresh judgments account for
+two observed attempts, one key and one public provider operation on the correct path.
 
 ## C — Progressive teaching history
 
@@ -33,9 +33,9 @@ tags have been created because that requires Dima's explicit authorization.
 Status: protocol implementation and local validation complete
 
 The real assurance service accepted the exported repository snapshot and replayed exact-revision
-merge observations, a bounded canary, provider reconciliation, expiry, violations, challenge
-findings and definition drift. Checked-in traces are explicitly recorded protocol fixtures, not
-claims about a production deployment.
+merge observations, a bounded canary, provider reconciliation, expiry, violations, a clean focused
+challenge and definition drift. The checked-in trace is a recorded protocol fixture, not a claim
+about a production deployment.
 
 ## E — Public article and slides
 
@@ -50,7 +50,8 @@ external actions.
 
 Status: machine path complete; human evidence pending
 
-The cold open produces two provider effects; the corrected failure/redelivery path produces one.
+The browser-driven cold open produces two provider effects because the unsafe worker sends two
+keys; the corrected failure/redelivery path sends one key and produces one effect.
 Offline image and source-input checks pass. A real 45-minute rehearsal, projector/readability check,
 recorded fallback and manual-QA attestation remain human work and must not be inferred from script
 output.

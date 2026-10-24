@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
-    "test:compose": "./run-compose"
+    "test:compose": "./run-compose --correct",
+    "test:compose:duplicate": "./run-compose --duplicate"
   },
   "devDependencies": {
     "@azimuth/tags": "file:../../tooling/azimuth-typescript",

@@ -4,10 +4,10 @@ set -eu
 TOOL_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$TOOL_DIR/../.." && pwd)
 LINKAGE=${1:-"$REPO_ROOT/.azimuth/linkage.json"}
-PROVIDER="$REPO_ROOT/services/provider-simulator"
-REPORT="$PROVIDER/target/pit-reports/mutations.xml"
+WORKER="$REPO_ROOT/services/refund-worker"
+REPORT="$WORKER/target/pit-reports/mutations.xml"
 SELECTION="$TOOL_DIR/pit-selection.json"
-OBSERVATION="$TOOL_DIR/provider-refund-observation.json"
+OBSERVATION="$TOOL_DIR/worker-idempotency-observation.json"
 AZIMUTH_SOURCE=${AZIMUTH_SOURCE_DIR:-"$REPO_ROOT/.cache/azimuth"}
 UPSTREAM="$AZIMUTH_SOURCE/tools/extractors/typescript"
 PIT_VERSION=1.22.0
@@ -27,7 +27,7 @@ node "$UPSTREAM/dist/pit-cli.js" \
   "$LINKAGE" \
   "$OBSERVATION" \
   --root "$REPO_ROOT" \
-  --config "$PROVIDER/pom.xml" \
+  --config "$WORKER/pom.xml" \
   --selection "$SELECTION" \
   --tool-version "$PIT_VERSION"
 

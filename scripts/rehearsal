@@ -11,7 +11,8 @@ Commands:
   check          syntax-check scripts, Compose, and offline source checksums
   reset          reset project-scoped volumes and start the pinned local images
   readiness      read-only check that a running demo is healthy and pristine
-  run            reset project-scoped volumes and execute failure + correction without building
+  run            execute the correct-worker failure + recovery journey without building
+  duplicate      execute and assert the unsafe-worker browser scenario without building
   offline-check  require every runtime image locally and verify source checksums
 
 The run command is intentionally explicit because demo-reset removes this Compose project's
@@ -40,9 +41,19 @@ verify_checksums() {
 check_scripts() {
   sh -n "$PROJECT_ROOT/scripts/demo-failure"
   sh -n "$PROJECT_ROOT/scripts/demo-correct"
+  sh -n "$PROJECT_ROOT/scripts/demo-start-duplicate"
+  sh -n "$PROJECT_ROOT/scripts/demo-run-duplicate"
+  sh -n "$PROJECT_ROOT/scripts/demo-stop"
+  sh -n "$PROJECT_ROOT/scripts/azimuth-check"
+  sh -n "$PROJECT_ROOT/scripts/demo-stage"
+  sh -n "$PROJECT_ROOT/scripts/show-judgment-history"
+  sh -n "$PROJECT_ROOT/scripts/teaching-acceptance-gate"
+  sh -n "$PROJECT_ROOT/demo/teaching/verify-stages"
+  node --check "$PROJECT_ROOT/demo/teaching/check-challenges.mjs"
   sh -n "$PROJECT_ROOT/scripts/rehearsal"
   "$PROJECT_ROOT/scripts/demo-failure" --check
   "$PROJECT_ROOT/scripts/demo-correct" --check
+  "$PROJECT_ROOT/demo/teaching/verify-stages"
 }
 
 case "${1:-}" in
@@ -50,6 +61,9 @@ case "${1:-}" in
     [ "$#" -eq 1 ] || { usage >&2; exit 2; }
     check_scripts
     docker compose --project-directory "$PROJECT_ROOT" config --quiet
+    docker compose --project-directory "$PROJECT_ROOT" \
+      -f "$PROJECT_ROOT/compose.yaml" \
+      -f "$PROJECT_ROOT/compose.failure.yaml" config --quiet
     verify_checksums
     echo "rehearsal package is internally consistent"
     ;;
@@ -72,6 +86,14 @@ case "${1:-}" in
     elapsed=$(( $(date +%s) - started_at ))
     echo "machine rehearsal completed in ${elapsed}s"
     echo "human 45-minute talk rehearsal and manual-QA attestation remain pending"
+    ;;
+  duplicate)
+    [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+    started_at=$(date +%s)
+    "$PROJECT_ROOT/scripts/demo-run-duplicate"
+    elapsed=$(( $(date +%s) - started_at ))
+    echo "unsafe-worker machine rehearsal completed in ${elapsed}s"
+    echo "human browser presentation and manual-QA attestation remain pending"
     ;;
   offline-check)
     [ "$#" -eq 1 ] || { usage >&2; exit 2; }

@@ -1,5 +1,7 @@
 package dev.drim.azimuth.refund.api.messaging;
 
+import dev.drim.azimuth.Azimuth.ImplementsMechanism;
+import dev.drim.azimuth.Azimuth.Realizes;
 import dev.drim.azimuth.refund.api.refund.RefundRepository;
 import dev.drim.azimuth.refund.contracts.event.RefundEventNames;
 import dev.drim.azimuth.refund.contracts.event.RefundOutcome;
@@ -17,6 +19,8 @@ public class RefundResultProcessor {
     }
 
     @Transactional
+    @Realizes(spec = "refunds/execution", scenario = "interrupted-processing-eventually-completes")
+    @ImplementsMechanism(spec = "refunds/execution", mechanism = "idempotent-result-projection")
     public void process(RefundResultV1 event) {
         if (!RefundEventNames.REFUND_RESULT_V1.equals(event.eventType())
                 || event.eventVersion() != RefundEventNames.VERSION_1

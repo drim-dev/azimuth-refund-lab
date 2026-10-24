@@ -107,7 +107,7 @@ services:
       WORKER_URL: http://refund-worker:8081
       PROVIDER_URL: http://provider:8082
     ports:
-      - "3000:3000"
+      - "${REFUND_LAB_PORT:-3100}:3000"
     depends_on:
       refund-api:
         condition: service_started

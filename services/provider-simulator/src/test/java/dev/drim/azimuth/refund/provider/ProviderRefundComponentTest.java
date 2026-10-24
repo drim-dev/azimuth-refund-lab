@@ -2,13 +2,13 @@ package dev.drim.azimuth.refund.provider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.drim.azimuth.Azimuth.Covers;
 import dev.drim.azimuth.Azimuth.CoversMechanism;
 import dev.drim.azimuth.Azimuth.Oracle;
 import dev.drim.azimuth.Azimuth.Quantification;
 import dev.drim.azimuth.Azimuth.Scope;
 import dev.drim.azimuth.refund.contracts.http.ProviderRefundRequest;
 import dev.drim.azimuth.refund.contracts.http.ProviderRefundResponse;
+import dev.drim.azimuth.refund.contracts.http.ProviderRefundSummary;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -25,7 +25,6 @@ import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -44,6 +43,8 @@ import tools.jackson.databind.ObjectMapper;
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ProviderRefundComponentTest {
+    private static final UUID REFUND_ID = UUID.fromString(
+            "44444444-4444-4444-4444-444444444444");
     private static final UUID PAYMENT_ID = UUID.fromString(
             "33333333-3333-3333-3333-333333333333");
 
@@ -72,96 +73,45 @@ class ProviderRefundComponentTest {
     }
 
     @BeforeEach
-    void clearLedger() {
+    void clearProviderState() {
+        jdbc.update("DELETE FROM provider_request_attempts");
         jdbc.update("DELETE FROM provider_financial_effects");
         jdbc.update("DELETE FROM provider_refund_ledger");
     }
 
     @Test
-    @Tag("mutation")
-    @Covers(
-            spec = "refunds/provider-effects",
-            scenario = "redelivery-after-provider-success",
-            scope = Scope.component,
-            quantification = Quantification.universal,
-            oracle = Oracle.relational)
     @CoversMechanism(
-            spec = "refunds/provider-effects",
-            mechanism = "provider-refund-ledger",
+            spec = "refunds/execution",
+            mechanism = "provider-idempotency-contract",
             scope = Scope.component,
             quantification = Quantification.universal,
             oracle = Oracle.relational)
-    void identicalRepeatReturnsTheStoredResponseAndOneLedgerOperation() throws Exception {
-        UUID refundId = UUID.randomUUID();
-        ProviderRefundRequest request = request(PAYMENT_ID, "30.00", "EUR");
+    void identicalKeyAndPayloadReturnOneStoredProviderOperation() throws Exception {
+        String key = REFUND_ID.toString();
+        ProviderRefundRequest request = request(REFUND_ID, PAYMENT_ID, "30.00", "EUR");
 
-        HttpResponse<String> first = put(refundId, request);
-        HttpResponse<String> repeated = put(refundId, request);
+        HttpResponse<String> first = post(key, request);
+        HttpResponse<String> repeated = post(key, request);
 
         assertThat(first.statusCode()).isEqualTo(200);
         assertThat(repeated.statusCode()).isEqualTo(200);
         assertThat(readResponse(repeated)).isEqualTo(readResponse(first));
-        assertLedgerMatches(refundId, request);
-        assertThat(applicationCount(refundId)).isEqualTo(1);
-        assertThat(idempotencyRecordCount(refundId)).isEqualTo(1);
+        assertStoredRequest(key, request);
+        assertThat(summary(REFUND_ID).operations()).containsExactly(readResponse(first));
+        assertThat(summary(REFUND_ID).attempts()).hasSize(2);
+        assertThat(summary(REFUND_ID).applicationCount()).isEqualTo(1);
     }
 
     @Test
-    void storedRefundAndItsApplicationCountAreAvailableOverHttp() throws Exception {
-        UUID refundId = UUID.randomUUID();
-        ProviderRefundRequest request = request(PAYMENT_ID, "30.00", "EUR");
-        ProviderRefundResponse applied = readResponse(put(refundId, request));
-        assertThat(put(refundId, request).statusCode()).isEqualTo(200);
-
-        HttpResponse<String> stored = get("/provider/v1/refunds/" + refundId);
-        HttpResponse<String> applications = get(
-                "/provider/v1/refunds/" + refundId + "/applications");
-
-        assertThat(stored.statusCode()).isEqualTo(200);
-        assertThat(readResponse(stored)).isEqualTo(applied);
-        assertThat(applications.statusCode()).isEqualTo(200);
-        assertThat(json.readTree(applications.body()).path("refundId").asString())
-                .isEqualTo(refundId.toString());
-        assertThat(json.readTree(applications.body()).path("count").asInt()).isEqualTo(1);
-        assertThat(applicationCount(refundId)).isEqualTo(1);
-        assertThat(idempotencyRecordCount(refundId)).isEqualTo(1);
-    }
-
-    @Test
-    void missingRefundReturnsNotFoundAndZeroApplications() throws Exception {
-        UUID refundId = UUID.randomUUID();
-
-        HttpResponse<String> missing = get("/provider/v1/refunds/" + refundId);
-        HttpResponse<String> applications = get(
-                "/provider/v1/refunds/" + refundId + "/applications");
-
-        assertThat(missing.statusCode()).isEqualTo(404);
-        assertThat(missing.headers().firstValue("content-type").orElse(""))
-                .startsWith("application/problem+json");
-        assertThat(missing.body()).contains("Provider refund not found");
-        assertThat(applications.statusCode()).isEqualTo(200);
-        assertThat(json.readTree(applications.body()).path("refundId").asString())
-                .isEqualTo(refundId.toString());
-        assertThat(json.readTree(applications.body()).path("count").asInt()).isZero();
-    }
-
-    @Test
-    @Tag("mutation")
-    @Covers(
-            spec = "refunds/provider-effects",
-            scenario = "redelivery-after-provider-success",
-            scope = Scope.component,
-            quantification = Quantification.universal,
-            oracle = Oracle.relational)
     @CoversMechanism(
-            spec = "refunds/provider-effects",
-            mechanism = "provider-refund-ledger",
+            spec = "refunds/execution",
+            mechanism = "provider-idempotency-contract",
             scope = Scope.component,
             quantification = Quantification.universal,
             oracle = Oracle.relational)
-    void concurrentIdenticalRepeatsReturnOneStoredOperation() throws Exception {
-        UUID refundId = UUID.randomUUID();
-        ProviderRefundRequest request = request(PAYMENT_ID, "30.00", "EUR");
+    void concurrentIdenticalRequestsSettleOnOneProviderOperation() throws Exception {
+        String key = REFUND_ID.toString();
+        ProviderRefundRequest request = request(REFUND_ID, PAYMENT_ID, "30.00", "EUR");
         CountDownLatch start = new CountDownLatch(1);
 
         List<HttpResponse<String>> responses;
@@ -169,7 +119,7 @@ class ProviderRefundComponentTest {
             List<Future<HttpResponse<String>>> calls = IntStream.range(0, 12)
                     .mapToObj(ignored -> callers.submit(() -> {
                         start.await();
-                        return putUnchecked(refundId, request);
+                        return postUnchecked(key, request);
                     }))
                     .toList();
             start.countDown();
@@ -181,126 +131,101 @@ class ProviderRefundComponentTest {
                 .map(this::readResponseUnchecked)
                 .toList();
         assertThat(results).containsOnly(results.getFirst());
-        assertLedgerMatches(refundId, request);
-        assertThat(applicationCount(refundId)).isEqualTo(1);
-        assertThat(idempotencyRecordCount(refundId)).isEqualTo(1);
+        assertStoredRequest(key, request);
+        assertThat(summary(REFUND_ID).applicationCount()).isEqualTo(1);
+        assertThat(summary(REFUND_ID).attempts()).hasSize(12);
     }
 
     @ParameterizedTest
     @MethodSource("conflictingRequests")
-    @Tag("mutation")
-    @Covers(
-            spec = "refunds/provider-effects",
-            scenario = "redelivery-after-provider-success",
-            scope = Scope.component,
-            quantification = Quantification.universal,
-            oracle = Oracle.relational)
     @CoversMechanism(
-            spec = "refunds/provider-effects",
-            mechanism = "provider-refund-ledger",
+            spec = "refunds/execution",
+            mechanism = "provider-idempotency-contract",
             scope = Scope.component,
             quantification = Quantification.universal,
             oracle = Oracle.relational)
-    void changedFinancialFieldIsAConflict(ProviderRefundRequest changedRequest) throws Exception {
-        UUID refundId = UUID.randomUUID();
-        ProviderRefundRequest original = request(PAYMENT_ID, "30.00", "EUR");
-        assertThat(put(refundId, original).statusCode()).isEqualTo(200);
+    void changedPayloadUnderTheSameKeyIsAConflict(ProviderRefundRequest changed) throws Exception {
+        String key = REFUND_ID.toString();
+        ProviderRefundRequest original = request(REFUND_ID, PAYMENT_ID, "30.00", "EUR");
+        assertThat(post(key, original).statusCode()).isEqualTo(200);
 
-        HttpResponse<String> conflict = put(refundId, changedRequest);
+        HttpResponse<String> conflict = post(key, changed);
 
         assertThat(conflict.statusCode()).isEqualTo(409);
         assertThat(conflict.headers().firstValue("content-type").orElse(""))
                 .startsWith("application/problem+json");
         assertThat(conflict.body()).contains("Provider refund conflict");
-        assertLedgerMatches(refundId, original);
-        assertThat(applicationCount(refundId)).isEqualTo(1);
-        assertThat(idempotencyRecordCount(refundId)).isEqualTo(1);
+        assertStoredRequest(key, original);
+        assertThat(summary(REFUND_ID).applicationCount()).isEqualTo(1);
     }
 
     @Test
-    @Tag("mutation")
-    @Covers(
-            spec = "refunds/provider-effects",
-            scenario = "redelivery-after-provider-success",
-            scope = Scope.component,
-            quantification = Quantification.universal,
-            oracle = Oracle.relational)
-    @CoversMechanism(
-            spec = "refunds/provider-effects",
-            mechanism = "provider-refund-ledger",
-            scope = Scope.component,
-            quantification = Quantification.universal,
-            oracle = Oracle.relational)
-    void competingPayloadsSettleOnOneRefundIdentity() throws Exception {
-        UUID refundId = UUID.randomUUID();
-        ProviderRefundRequest first = request(PAYMENT_ID, "30.00", "EUR");
-        ProviderRefundRequest second = request(UUID.randomUUID(), "31.00", "USD");
-        CountDownLatch start = new CountDownLatch(1);
+    void differentKeysAreIndependentEvenForOneBusinessRefund() throws Exception {
+        ProviderRefundRequest request = request(REFUND_ID, PAYMENT_ID, "30.00", "EUR");
+        String firstKey = "delivery-1";
+        String secondKey = "delivery-2";
 
-        List<HttpResponse<String>> responses;
-        try (ExecutorService callers = Executors.newFixedThreadPool(2)) {
-            List<Future<HttpResponse<String>>> calls = List.of(
-                    callers.submit(() -> {
-                        start.await();
-                        return putUnchecked(refundId, first);
-                    }),
-                    callers.submit(() -> {
-                        start.await();
-                        return putUnchecked(refundId, second);
-                    }));
-            start.countDown();
-            responses = calls.stream().map(ProviderRefundComponentTest::await).toList();
-        }
+        ProviderRefundResponse first = readResponse(post(firstKey, request));
+        ProviderRefundResponse second = readResponse(post(secondKey, request));
+        ProviderRefundSummary summary = summary(REFUND_ID);
 
-        assertThat(responses).extracting(HttpResponse::statusCode).containsExactlyInAnyOrder(200, 409);
-        ProviderRefundRequest winner = responses.get(0).statusCode() == 200 ? first : second;
-        assertLedgerMatches(refundId, winner);
-        assertThat(applicationCount(refundId)).isEqualTo(1);
-        assertThat(idempotencyRecordCount(refundId)).isEqualTo(1);
+        assertThat(first.providerOperationId()).isNotEqualTo(second.providerOperationId());
+        assertThat(summary.operations()).extracting(ProviderRefundResponse::idempotencyKey)
+                .containsExactly(firstKey, secondKey);
+        assertThat(summary.attempts()).extracting(
+                dev.drim.azimuth.refund.contracts.http.ProviderRefundAttempt::idempotencyKey)
+                .containsExactly(firstKey, secondKey);
+        assertThat(summary.applicationCount()).isEqualTo(2);
+        assertThat(financialEffectCount(REFUND_ID)).isEqualTo(2);
     }
 
     @Test
-    void healthIsAvailableOverHttp() throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(uri("/actuator/health")).GET().build();
+    void missingBusinessRefundHasAnEmptyPublicHistory() throws Exception {
+        ProviderRefundSummary summary = summary(UUID.randomUUID());
 
-        HttpResponse<String> response = http.send(
-                request,
-                HttpResponse.BodyHandlers.ofString());
-
-        assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).contains("\"status\":\"UP\"");
+        assertThat(summary.operations()).isEmpty();
+        assertThat(summary.attempts()).isEmpty();
+        assertThat(summary.applicationCount()).isZero();
     }
 
     private static Stream<Arguments> conflictingRequests() {
         return Stream.of(
-                Arguments.of(request(UUID.randomUUID(), "30.00", "EUR")),
-                Arguments.of(request(PAYMENT_ID, "30.01", "EUR")),
-                Arguments.of(request(PAYMENT_ID, "30.00", "USD")));
+                Arguments.of(request(UUID.randomUUID(), PAYMENT_ID, "30.00", "EUR")),
+                Arguments.of(request(REFUND_ID, UUID.randomUUID(), "30.00", "EUR")),
+                Arguments.of(request(REFUND_ID, PAYMENT_ID, "30.01", "EUR")),
+                Arguments.of(request(REFUND_ID, PAYMENT_ID, "30.00", "USD")));
     }
 
-    private static ProviderRefundRequest request(UUID paymentId, String amount, String currency) {
-        return new ProviderRefundRequest(paymentId, new BigDecimal(amount), currency);
+    private static ProviderRefundRequest request(
+            UUID refundId,
+            UUID paymentId,
+            String amount,
+            String currency
+    ) {
+        return new ProviderRefundRequest(refundId, paymentId, new BigDecimal(amount), currency);
     }
 
-    private HttpResponse<String> put(UUID refundId, ProviderRefundRequest request)
+    private HttpResponse<String> post(String key, ProviderRefundRequest request)
             throws IOException, InterruptedException {
-        HttpRequest httpRequest = HttpRequest.newBuilder(
-                        uri("/provider/v1/refunds/" + refundId))
+        HttpRequest httpRequest = HttpRequest.newBuilder(uri("/provider/v1/refunds"))
                 .header("Content-Type", "application/json")
-                .PUT(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(request)))
+                .header("Idempotency-Key", key)
+                .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(request)))
                 .build();
         return http.send(httpRequest, HttpResponse.BodyHandlers.ofString());
     }
 
-    private HttpResponse<String> get(String path) throws IOException, InterruptedException {
-        return http.send(
-                HttpRequest.newBuilder(uri(path)).GET().build(),
+    private ProviderRefundSummary summary(UUID refundId) throws Exception {
+        HttpResponse<String> response = http.send(
+                HttpRequest.newBuilder(uri("/provider/v1/business-refunds/" + refundId)).GET().build(),
                 HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        return json.readValue(response.body(), ProviderRefundSummary.class);
     }
 
-    private HttpResponse<String> putUnchecked(UUID refundId, ProviderRefundRequest request) {
+    private HttpResponse<String> postUnchecked(String key, ProviderRefundRequest request) {
         try {
-            return put(refundId, request);
+            return post(key, request);
         } catch (IOException exception) {
             throw new IllegalStateException(exception);
         } catch (InterruptedException exception) {
@@ -321,33 +246,27 @@ class ProviderRefundComponentTest {
         }
     }
 
-    private void assertLedgerMatches(UUID refundId, ProviderRefundRequest request) {
-        LedgerOracle row = jdbc.queryForObject("""
-                SELECT payment_id, amount, currency
+    private void assertStoredRequest(String key, ProviderRefundRequest request) {
+        StoredRequest stored = jdbc.queryForObject("""
+                SELECT refund_id, payment_id, amount, currency
                 FROM provider_refund_ledger
-                WHERE refund_id = ?
-                """, (resultSet, rowNumber) -> new LedgerOracle(
+                WHERE idempotency_key = ?
+                """, (resultSet, rowNumber) -> new StoredRequest(
+                resultSet.getObject("refund_id", UUID.class),
                 resultSet.getObject("payment_id", UUID.class),
                 resultSet.getBigDecimal("amount"),
-                resultSet.getString("currency")), refundId);
+                resultSet.getString("currency")), key);
 
-        assertThat(row).isNotNull();
-        assertThat(row.paymentId()).isEqualTo(request.paymentId());
-        assertThat(row.amount()).isEqualByComparingTo(request.amount());
-        assertThat(row.currency()).isEqualTo(request.currency());
+        assertThat(stored).isNotNull();
+        assertThat(stored.refundId()).isEqualTo(request.refundId());
+        assertThat(stored.paymentId()).isEqualTo(request.paymentId());
+        assertThat(stored.amount()).isEqualByComparingTo(request.amount());
+        assertThat(stored.currency()).isEqualTo(request.currency());
     }
 
-    private int applicationCount(UUID refundId) {
-        return countRows("provider_financial_effects", refundId);
-    }
-
-    private int idempotencyRecordCount(UUID refundId) {
-        return countRows("provider_refund_ledger", refundId);
-    }
-
-    private int countRows(String table, UUID refundId) {
+    private int financialEffectCount(UUID refundId) {
         Integer count = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM " + table + " WHERE refund_id = ?",
+                "SELECT COUNT(*) FROM provider_financial_effects WHERE refund_id = ?",
                 Integer.class,
                 refundId);
         return count == null ? 0 : count;
@@ -368,6 +287,11 @@ class ProviderRefundComponentTest {
         }
     }
 
-    private record LedgerOracle(UUID paymentId, BigDecimal amount, String currency) {
+    private record StoredRequest(
+            UUID refundId,
+            UUID paymentId,
+            BigDecimal amount,
+            String currency
+    ) {
     }
 }
